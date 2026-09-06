@@ -90,6 +90,10 @@ public:
   FP2x128 operator-(uint64_t rhs) const { return FP2x128(val ^ (u128)rhs, false); }
   FP2x128 operator-() const { return *this; }
   FP2x128 negate() const { return *this; }
+  // Addition is XOR: nothing to reduce.
+  static constexpr unsigned lazy_adds = 1u << 30;
+  void add_raw(const FP2x128 &rhs) { val ^= rhs.val; }
+  void reduce() {}
 
   // Multiplication is GF(2^128) gfmul (carry-less mult + GCM reduction).
   FP2x128 operator*(const FP2x128 &rhs) const {
@@ -212,6 +216,10 @@ public:
   FP2x128x2 operator-(const FP2x128 b) const { return *this + b; }
   FP2x128x2 operator-(const FP2x128x2 b) const { return *this + b; }
   FP2x128x2 negate() const { return *this; }
+  static constexpr unsigned lazy_adds = 1u << 30;
+  void add_raw(const FP2x128x2 &rhs) { val[0] ^= rhs.val[0]; val[1] ^= rhs.val[1]; }
+  void reduce() {}
+  void set_low_from_block(block b) { val[0] = FP2x128::from_blk(b); val[1] = 0; }
 
   static std::size_t size() { return sizeof(u128) * 2; }
 

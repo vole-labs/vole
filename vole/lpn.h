@@ -38,18 +38,26 @@ public:
       index[j] = (index[j] >= k) ? index[j] - k : index[j];
     }
 
+    // Lazy reduction: raw adds, reduced every FP::lazy_adds terms (5 for the
+    // 61-bit Mersenne field, i.e. 2 reductions per output instead of 10).
     FP tmpv[4];
     tmpv[0] = K[i];
     tmpv[1] = K[i+1];
     tmpv[2] = K[i+2];
     tmpv[3] = K[i+3];
     int *p = (int *)(tmp);
+    unsigned pending = 0;
     for (int j = 0; j < 10; ++j) {
-      tmpv[0] = tmpv[0] + preK[*(p++)];
-      tmpv[1] = tmpv[1] + preK[*(p++)];
-      tmpv[2] = tmpv[2] + preK[*(p++)];
-      tmpv[3] = tmpv[3] + preK[*(p++)];
+      tmpv[0].add_raw(preK[*(p++)]);
+      tmpv[1].add_raw(preK[*(p++)]);
+      tmpv[2].add_raw(preK[*(p++)]);
+      tmpv[3].add_raw(preK[*(p++)]);
+      if (++pending == FP::lazy_adds) {
+        tmpv[0].reduce(); tmpv[1].reduce(); tmpv[2].reduce(); tmpv[3].reduce();
+        pending = 0;
+      }
     }
+    if (pending) { tmpv[0].reduce(); tmpv[1].reduce(); tmpv[2].reduce(); tmpv[3].reduce(); }
     K[i] = tmpv[0];
     K[i+1] = tmpv[1];
     K[i+2] = tmpv[2];
@@ -69,9 +77,12 @@ public:
     }
 
     FP tmpv = K[i];
+    unsigned pending = 0;
     for(int j = 0; j < 10; ++j) {
-      tmpv = tmpv + preK[r[j]];
+      tmpv.add_raw(preK[r[j]]);
+      if (++pending == FP::lazy_adds) { tmpv.reduce(); pending = 0; }
     }
+    if (pending) tmpv.reduce();
     K[i] = tmpv;
   }
 

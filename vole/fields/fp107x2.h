@@ -137,6 +137,15 @@ public:
     return res;
   }
 
+  static constexpr unsigned lazy_adds = 1024;
+  void add_raw(const FP107x2 &rhs) { val[0] += rhs.val[0]; val[1] += rhs.val[1]; }
+  void reduce() { val[0] = FP107::mod(val[0]); val[1] = FP107::mod(val[1]); }
+  void set_low_from_block(block b) {
+    uint64_t lo = _mm_extract_epi64(b, 0), hi = _mm_extract_epi64(b, 1);
+    val[0] = FP107::mod(((u128)hi << 64) | (u128)lo);
+    val[1] = 0;
+  }
+
   FP107x2 negate() const {
     FP107x2 res;
     res.val[0] = (val[0] == 0) ? 0 : (PR - val[0]);

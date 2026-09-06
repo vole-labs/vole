@@ -124,6 +124,12 @@ class FP107 {
     FP107& operator-=(const FP107& rhs) { *this = *this - rhs; return *this; }
     FP107& operator*=(const FP107& rhs) { *this = *this * rhs; return *this; }
 
+    // Lazy reduction: values are < 2^107 in a 128-bit word, so 2^21 - 2 raw
+    // adds fit; reduce() is the single Mersenne fold.
+    static constexpr unsigned lazy_adds = 1024;
+    void add_raw(const FP107 &rhs) { val += rhs.val; }
+    void reduce() { val = mod(val); }
+
     FP107 negate() const {
         FP107 r;
         r.val = (val == 0) ? 0 : (PR - val);

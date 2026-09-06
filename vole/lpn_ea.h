@@ -72,8 +72,12 @@ public:
   template <typename T>
   void add_one(T *out, const T *in, int64_t idx1, int64_t *idx2) {
     T acc = out[idx1];
-    for (int j = 0; j < sparcity; ++j)
-      acc = acc + in[idx2[j]];
+    unsigned pending = 0;
+    for (int j = 0; j < sparcity; ++j) {
+      acc.add_raw(in[idx2[j]]);
+      if (++pending == T::lazy_adds) { acc.reduce(); pending = 0; }
+    }
+    if (pending) acc.reduce();
     out[idx1] = acc;
   }
 

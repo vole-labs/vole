@@ -53,25 +53,42 @@ public:
   // receive the message and reconstruct the tree
   // j: position of the secret, begins from 0
   // delta2 only use low 64 bits
+  // Reconstruct the punctured tree and write the reduced leaves (low/MAC lane;
+  // value lane 0) into ggm_tree_mem. When FPS is block-sized (FP61x2) the tree
+  // is reconstructed IN PLACE in the caller's buffer; otherwise a scratch tree
+  // is used. The leaf loop fuses the conversion with a lazily reduced sum.
   template<typename FPS>
   void compute(FPS *ggm_tree_mem, FPS delta2_mac) {
-    ggm_tree = new block[leave_n];
-    ggm_tree_reconstruction(b, m);
-
-    ggm_tree_mem[choice_pos].setZero();
-    FP nodes_sum;
-    FP zz(0);
-    for (std::size_t i = 0; i < leave_n; ++i) {
-      ggm_tree_mem[i].from_block(ggm_tree[i]);
-      ggm_tree_mem[i].setHigh(zz);
-      nodes_sum = nodes_sum + ggm_tree_mem[i].getLow();
+    block *tree;
+    if (sizeof(FPS) == sizeof(block)) {
+      tree = reinterpret_cast<block *>(ggm_tree_mem);
+    } else {
+      ggm_tree = new block[leave_n];
+      tree = ggm_tree;
     }
+    tree_ = tree;
+    ggm_tree_reconstruction(b, m);
+    tree[choice_pos] = zero_block;
+
+    FP nodes_sum;
+    unsigned pending = 0;
+    for (std::size_t i = 0; i < leave_n; ++i) {
+      block leaf = tree[i];
+      ggm_tree_mem[i].set_low_from_block(leaf);
+      nodes_sum.add_raw(ggm_tree_mem[i].getLow());
+      if (++pending == FP::lazy_adds) { nodes_sum.reduce(); pending = 0; }
+    }
+    if (pending) nodes_sum.reduce();
     nodes_sum = share + nodes_sum;
     nodes_sum = nodes_sum.negate();
     ggm_tree_mem[choice_pos] = delta2_mac + nodes_sum;
   }
 
+  // Leaves of the most recent compute() (raw blocks for the ring tag check).
+  block *tree_ = nullptr;
+
   void ggm_tree_reconstruction(bool *b, block *m) {
+    block *ggm_tree = tree_;
     std::size_t to_fill_idx = 0;
     TwoKeyPRP prp(zero_block, makeBlock(0, 1));
     for (std::size_t i = 1; i < depth; ++i) {
@@ -87,6 +104,7 @@ public:
 
   void layer_recover(std::size_t depth, std::size_t lr, std::size_t to_fill_idx, block sum,
                      TwoKeyPRP *prp) {
+    block *ggm_tree = tree_;
     std::size_t layer_start = 0;
     std::size_t item_n = 1 << depth;
     block nodes_sum = zero_block;
@@ -109,7 +127,7 @@ public:
   // t_{choice_pos} = K_top XOR (XOR_{j!=choice} t_j) from the sender's commitment.
   void ggm_tag_top(block K_top) {
     ggm_tag = new block[leave_n];
-    ggm_leaf_tag(ggm_tag, ggm_tree, leave_n);  // ggm_tag[choice_pos] is garbage
+    ggm_leaf_tag(ggm_tag, tree_, leave_n);  // ggm_tag[choice_pos] is garbage
     block rest = zero_block;
     for (std::size_t i = 0; i < leave_n; ++i)
       if (i != choice_pos) rest = rest ^ ggm_tag[i];

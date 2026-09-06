@@ -38,27 +38,40 @@ public:
     if(ggm_tag != nullptr) delete[] ggm_tag;
   }
 
-  // send the nodes by oblivious transfer
+  // Expand the GGM tree and write the reduced leaves into ggm_tree_mem. When
+  // FP is block-sized the tree is expanded IN PLACE in the caller's buffer
+  // (no scratch allocation, no copy); otherwise (8-byte FP61) a scratch tree
+  // is used. The leaf loop fuses the field conversion with a lazily reduced
+  // sum.
   void compute(FP *ggm_tree_mem, FP secret,
                FP gamma_mac) {
     this->delta = secret;
-    ggm_tree = new block[leave_n];
+    block *tree;
+    if (sizeof(FP) == sizeof(block)) {
+      tree = reinterpret_cast<block *>(ggm_tree_mem);
+    } else {
+      ggm_tree = new block[leave_n];
+      tree = ggm_tree;
+    }
+    tree_ = tree;
     ggm_tree_gen(m, m + depth - 1);
 
     secret_sum.setZero();
+    unsigned pending = 0;
     for (std::size_t i = 0; i < leave_n; ++i) {
-      ggm_tree_mem[i].from_block(ggm_tree[i]);
-      secret_sum = secret_sum + ggm_tree_mem[i];
+      block leaf = tree[i];
+      ggm_tree_mem[i].from_block(leaf);
+      secret_sum.add_raw(ggm_tree_mem[i]);
+      if (++pending == FP::lazy_adds) { secret_sum.reduce(); pending = 0; }
     }
-    FP zz(0);
-    if (FP::PR_num_pack > 1) {
-      for (std::size_t i = 0; i < leave_n; ++i) {
-        ggm_tree_mem[i].setHigh(zz);
-      }
-    }
+    if (pending) secret_sum.reduce();
     secret_sum = secret_sum.negate();
     secret_sum = gamma_mac + secret_sum;
   }
+
+  // Leaves of the most recent compute() (raw blocks for the ring tag check;
+  // identical to the field values when from_block is the identity).
+  block *tree_ = nullptr;
 
   // send the nodes by oblivious transfer
   template <typename OT> void send(OT *ot, IO *io2, std::size_t s) {
@@ -69,6 +82,7 @@ public:
 
   // generate GGM tree from the top
   void ggm_tree_gen(block *ot_msg_0, block *ot_msg_1) {
+    block *ggm_tree = tree_;
     TwoKeyPRP *prp = new TwoKeyPRP(zero_block, makeBlock(0, 1));
     prp->node_expand_1to2(ggm_tree, seed);
     ot_msg_0[0] = ggm_tree[0];
@@ -95,7 +109,7 @@ public:
   // Phase A: tag every leaf and commit K_top = XOR_j t_j (no I/O).
   block ggm_tag_top() {
     ggm_tag = new block[leave_n];
-    ggm_leaf_tag(ggm_tag, ggm_tree, leave_n);
+    ggm_leaf_tag(ggm_tag, tree_, leave_n);
     block K_top = zero_block;
     for (std::size_t i = 0; i < leave_n; ++i)
       K_top = K_top ^ ggm_tag[i];

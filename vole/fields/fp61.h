@@ -130,6 +130,12 @@ public:
     return res;
   }
 
+  // Lazy reduction: up to `lazy_adds` add_raw() calls on a reduced value stay
+  // below 2^64 (6 * 2^61 < 2^64); reduce() brings the sum back below p.
+  static constexpr unsigned lazy_adds = 5;
+  void add_raw(const FP61 &rhs) { val += rhs.val; }
+  void reduce() { val = mod(val); }
+
   FP61 negate() const {
     FP61 res(*this);
     if(res.val != 0)

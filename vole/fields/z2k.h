@@ -103,6 +103,10 @@ public:
   Z2k64 operator-(uint64_t rhs) const { return Z2k64(val - (u128)rhs, false); }
   Z2k64 operator-() const { return Z2k64((u128)0 - val, false); }
   Z2k64 negate() const { return Z2k64((u128)0 - val, false); }
+  // Ring addition wraps natively: nothing to reduce.
+  static constexpr unsigned lazy_adds = 1u << 30;
+  void add_raw(const Z2k64 &rhs) { val += rhs.val; }
+  void reduce() {}
 
   // Multiplication is native ring multiply (low 128 bits of the product).
   Z2k64 operator*(const Z2k64 &rhs) const { return Z2k64(val * rhs.val, false); }
@@ -209,6 +213,10 @@ public:
     return Z2k64x2(val[0] - b.val[0], val[1] - b.val[1]);
   }
   Z2k64x2 negate() const { return Z2k64x2((u128)0 - val[0], (u128)0 - val[1]); }
+  static constexpr unsigned lazy_adds = 1u << 30;
+  void add_raw(const Z2k64x2 &rhs) { val[0] += rhs.val[0]; val[1] += rhs.val[1]; }
+  void reduce() {}
+  void set_low_from_block(block b) { val[0] = Z2k64::from_blk(b); val[1] = 0; }
 
   static std::size_t size() { return sizeof(u128) * 2; }
 

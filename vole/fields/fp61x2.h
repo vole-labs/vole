@@ -203,6 +203,15 @@ public:
     return res;
   }
 
+  // Lazy reduction (both lanes), see FP61.
+  static constexpr unsigned lazy_adds = 5;
+  void add_raw(const FP61x2 &rhs) { val = _mm_add_epi64(val, rhs.val); }
+  void reduce() { val = vec_mod(val); }
+  // low lane <- leaf value from a GGM block (mod p), high lane <- 0.
+  void set_low_from_block(block b) {
+    val = makeBlock(0, mod((uint64_t)_mm_extract_epi64(b, 0)));
+  }
+
   FP61x2 negate() const {
     FP61x2 res(*this);
     uint64_t low = _mm_extract_epi64(res.val, 0);
