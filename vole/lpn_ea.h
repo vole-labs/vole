@@ -71,13 +71,17 @@ public:
 
   template <typename T>
   void add_one(T *out, const T *in, int64_t idx1, int64_t *idx2) {
+    // Raw adds in groups of T::lazy_adds (compile-time constant), one reduce
+    // per group; the remainder is reduced once at the end.
     T acc = out[idx1];
-    unsigned pending = 0;
-    for (int j = 0; j < sparcity; ++j) {
-      acc.add_raw(in[idx2[j]]);
-      if (++pending == T::lazy_adds) { acc.reduce(); pending = 0; }
+    const int L = (int)std::min<unsigned>(T::lazy_adds, 1u << 20);
+    int j = 0;
+    for (; j + L <= sparcity; j += L) {
+      for (int jj = 0; jj < L; ++jj) acc.add_raw(in[idx2[j + jj]]);
+      acc.reduce();
     }
-    if (pending) acc.reduce();
+    for (; j < sparcity; ++j) acc.add_raw(in[idx2[j]]);
+    acc.reduce();
     out[idx1] = acc;
   }
 
