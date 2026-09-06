@@ -28,8 +28,16 @@ public:
   std::size_t buf_sz() const { return n - t - k - 1; }
 };
 
+// Wolverine's F_p parameter set: main (n, t, k) = (10168320, 4965, 158000).
 const static PrimalLPNParameterFp61 fp_default = PrimalLPNParameterFp61(
     10168320, 4965, 158000, 11, 166400, 2600, 5060, 6, 9600, 600, 1220, 4);
+
+// emp-ot main's `ferret_b13` set: main (n, t, k) = (1900 * 2^13, 1900, 2^19),
+// bootstrapped through its `ferret_b10` = (850 * 2^10, 850, 2^16) twice (the
+// first from 1 + 850 + 65536 COPE triples, as emp-ot's F_p bootstrap does).
+// Fewer, deeper trees than fp_default: cheaper MPFSS per output, larger k.
+const static PrimalLPNParameterFp61 fp_ferret_b13 = PrimalLPNParameterFp61(
+    15564800, 1900, 524288, 13, 870400, 850, 65536, 10, 870400, 850, 65536, 10);
 
 template <typename IO, typename FP, typename FPS> 
 class VoleTriple {
