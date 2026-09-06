@@ -16,7 +16,6 @@ public:
   std::size_t choice_pos, depth, leave_n;
   IO *io;
   FP share;
-  PRG prg;
 
   SpfssRecverFp(IO *io, std::size_t depth_in) {
     this->io = io;

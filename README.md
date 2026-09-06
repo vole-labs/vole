@@ -136,7 +136,7 @@ derived per field.
 
 | Field | Threads | Target | Correlations | Total | VOLE | Commitment | µs/corr |
 |---|---|---|---|---|---|---|---|
-| fp61  | 1  | 2^20 | 2.10M | 5.69 s  | 2.74 s | 2.91 s | 2.71 |
+| fp61  | 1  | 2^20 | 2.10M | 5.41 s  | 2.45 s | 2.91 s | 2.58 |
 | fp61  | 16 | 2^20 | 2.10M | 0.62 s  | 0.28 s | 0.30 s | 0.30 |
 | f2k   | 1  | 2^20 | 2.10M | 7.46 s  | 4.11 s | 3.28 s | 3.56 |
 | f2k   | 16 | 2^20 | 2.10M | 0.77 s  | 0.35 s | 0.34 s | 0.37 |
@@ -153,7 +153,8 @@ dominated by per-column PRP generation and the `col_weight` multiply-adds, so
 it is nearly independent of `n_com`.
 
 The plain primal VOLE (`bench_vole fp61`, Wolverine parameters, 50M
-correlations) runs at 0.028 / 0.011 / 0.0070 µs per correlation with 1 / 4 / 16
-threads, level with emp-zk's `VoleTriple` single-threaded; with emp-ot's
+correlations) runs at 0.026 / 0.010 / 0.0066 µs per correlation with 1 / 4 / 16
+threads, level with emp-zk's `VoleTriple` (whose LPN stage uses one worker more
+than requested); with emp-ot's
 `ferret_b13` parameter set (`bench_vole ... fp61 <threads> <batches> ferret_b13`)
 it is 0.026 / 0.0090 / 0.0054 µs.

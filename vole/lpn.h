@@ -26,38 +26,40 @@ public:
     }
   }
 
+  // Map a raw 32-bit PRP word to an index in [0, k).
+  inline int fix_index(uint32_t x) const {
+    int v = (int)(x & k_mask);
+    return (v >= k) ? v - k : v;
+  }
+
   template<typename FP>
   void __compute4(FP *K, const FP* preK, int i, PRP *prp) {
     block tmp[10];
     for (int m = 0; m < 10; ++m)
       tmp[m] = makeBlock(i, m);
     prp->permute_block(tmp, 10);
-    int *index = (int *)(tmp);
-    for (int j = 0; j < 40; ++j) {
-      index[j] = index[j] & k_mask;
-      index[j] = (index[j] >= k) ? index[j] - k : index[j];
-    }
-
-    // Lazy reduction: raw adds, reduced every FP::lazy_adds terms (5 for the
-    // 61-bit Mersenne field, i.e. 2 reductions per output instead of 10).
+    // Indices are masked as they are consumed. The reduction schedule folds
+    // at compile time: raw adds, one reduce every FP::lazy_adds terms (2 per
+    // output for fp61, matching the hand-unrolled loop in emp-zk).
+    const uint32_t *r = (const uint32_t *)(tmp);
     FP tmpv[4];
     tmpv[0] = K[i];
     tmpv[1] = K[i+1];
     tmpv[2] = K[i+2];
     tmpv[3] = K[i+3];
-    int *p = (int *)(tmp);
-    unsigned pending = 0;
+#pragma GCC unroll 10
     for (int j = 0; j < 10; ++j) {
-      tmpv[0].add_raw(preK[*(p++)]);
-      tmpv[1].add_raw(preK[*(p++)]);
-      tmpv[2].add_raw(preK[*(p++)]);
-      tmpv[3].add_raw(preK[*(p++)]);
-      if (++pending == FP::lazy_adds) {
+      tmpv[0].add_raw(preK[fix_index(r[4 * j + 0])]);
+      tmpv[1].add_raw(preK[fix_index(r[4 * j + 1])]);
+      tmpv[2].add_raw(preK[fix_index(r[4 * j + 2])]);
+      tmpv[3].add_raw(preK[fix_index(r[4 * j + 3])]);
+      if ((j + 1) % (int)FP::lazy_adds == 0) {
         tmpv[0].reduce(); tmpv[1].reduce(); tmpv[2].reduce(); tmpv[3].reduce();
-        pending = 0;
       }
     }
-    if (pending) { tmpv[0].reduce(); tmpv[1].reduce(); tmpv[2].reduce(); tmpv[3].reduce(); }
+    if (10 % (int)FP::lazy_adds != 0) {
+      tmpv[0].reduce(); tmpv[1].reduce(); tmpv[2].reduce(); tmpv[3].reduce();
+    }
     K[i] = tmpv[0];
     K[i+1] = tmpv[1];
     K[i+2] = tmpv[2];
@@ -70,19 +72,14 @@ public:
     for (int m = 0; m < 3; ++m)
       tmp[m] = makeBlock(i, m);
     prp->permute_block(tmp, 3);
-    int *r = (int *)(tmp);
-    for (int j = 0; j < 10; ++j) {
-      r[j] = r[j] & k_mask;
-      r[j] = (r[j] >= k) ? r[j] - k : r[j];
-    }
-
+    const uint32_t *r = (const uint32_t *)(tmp);
     FP tmpv = K[i];
-    unsigned pending = 0;
-    for(int j = 0; j < 10; ++j) {
-      tmpv.add_raw(preK[r[j]]);
-      if (++pending == FP::lazy_adds) { tmpv.reduce(); pending = 0; }
+#pragma GCC unroll 10
+    for (int j = 0; j < 10; ++j) {
+      tmpv.add_raw(preK[fix_index(r[j])]);
+      if ((j + 1) % (int)FP::lazy_adds == 0) tmpv.reduce();
     }
-    if (pending) tmpv.reduce();
+    if (10 % (int)FP::lazy_adds != 0) tmpv.reduce();
     K[i] = tmpv;
   }
 
