@@ -124,3 +124,36 @@ so four processes). All use the same port and field:
 The king publishes every party's commitment; each pairwise verifier checks its
 key share against the published commitment. Success = every party completes
 without a check failure (set `MCVOLE_DEBUG=1` to trace the per-peer schedule).
+
+## Performance
+
+`bench_cvole <party> <port> <field> <threads> <log2_target>` runs both parties
+of the committed VOLE and splits the extend time into the VOLE pipeline
+(COT + MPFSS(`e_u`) + `H`) and the commitment pipeline (COT + MPFSS(`e_r`) +
+`[H_u | H_r]`). Numbers from one AWS instance (32 vCPU, both parties on
+localhost, no network shaping), t = 224, rate 1/7, `col_weight` 32, `n_com`
+derived per field.
+
+| Field | Threads | Target | Correlations | Total | VOLE | Commitment | µs/corr |
+|---|---|---|---|---|---|---|---|
+| fp61  | 1  | 2^20 | 2.10M | 5.69 s  | 2.74 s | 2.91 s | 2.71 |
+| fp61  | 16 | 2^20 | 2.10M | 0.62 s  | 0.28 s | 0.30 s | 0.30 |
+| f2k   | 1  | 2^20 | 2.10M | 7.46 s  | 4.11 s | 3.28 s | 3.56 |
+| f2k   | 16 | 2^20 | 2.10M | 0.77 s  | 0.35 s | 0.34 s | 0.37 |
+| fp107 | 1  | 2^20 | 2.10M | 12.69 s | 4.99 s | 7.61 s | 6.05 |
+| fp107 | 16 | 2^20 | 2.10M | 1.15 s  | 0.42 s | 0.66 s | 0.55 |
+| z2k   | 1  | 2^20 | 2.10M | 6.78 s  | 3.99 s | 2.72 s | 3.23 |
+| z2k   | 16 | 2^20 | 2.10M | 0.75 s  | 0.39 s | 0.29 s | 0.36 |
+| fp61  | 16 | 2^24 | 33.6M | 8.87 s  | 4.87 s | 3.49 s | 0.26 |
+| f2k   | 16 | 2^24 | 33.6M | 11.44 s | 6.54 s | 3.96 s | 0.34 |
+
+A target of 2^k needs two extend rounds (each round yields `n − M` usable
+outputs), hence 2.10M correlations for 2^20. The commitment's cost is
+dominated by per-column PRP generation and the `col_weight` multiply-adds, so
+it is nearly independent of `n_com`.
+
+The plain primal VOLE (`bench_vole fp61`, Wolverine parameters, 50M
+correlations) runs at 0.028 / 0.011 / 0.0070 µs per correlation with 1 / 4 / 16
+threads, level with emp-zk's `VoleTriple` single-threaded; with emp-ot's
+`ferret_b13` parameter set (`bench_vole ... fp61 <threads> <batches> ferret_b13`)
+it is 0.026 / 0.0090 / 0.0054 µs.
