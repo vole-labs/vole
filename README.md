@@ -142,16 +142,16 @@ derived per field.
 
 | Field | Threads | Target | Correlations | Total | VOLE | Commitment | µs/corr |
 |---|---|---|---|---|---|---|---|
-| fp61  | 1  | 2^20 | 2.10M | 5.48 s  | 2.53 s | 2.91 s | 2.62 |
-| fp61  | 16 | 2^20 | 2.10M | 0.56 s  | 0.29 s | 0.23 s | 0.26 |
-| f2k   | 1  | 2^20 | 2.10M | 7.38 s  | 4.03 s | 3.29 s | 3.52 |
-| f2k   | 16 | 2^20 | 2.10M | 0.73 s  | 0.37 s | 0.30 s | 0.35 |
-| fp107 | 1  | 2^20 | 2.10M | 12.53 s | 4.85 s | 7.60 s | 5.98 |
-| fp107 | 16 | 2^20 | 2.10M | 1.06 s  | 0.41 s | 0.58 s | 0.50 |
-| z2k   | 1  | 2^20 | 2.10M | 6.73 s  | 3.93 s | 2.74 s | 3.21 |
-| z2k   | 16 | 2^20 | 2.10M | 0.73 s  | 0.40 s | 0.27 s | 0.35 |
-| fp61  | 16 | 2^24 | 33.6M | 8.64 s  | 4.71 s | 3.48 s | 0.26 |
-| f2k   | 16 | 2^24 | 33.6M | 11.25 s | 6.50 s | 3.90 s | 0.34 |
+| fp61  | 1  | 2^20 | 2.10M | 3.76 s  | 2.17 s | 1.55 s | 1.79 |
+| fp61  | 16 | 2^20 | 2.10M | 0.45 s  | 0.25 s | 0.16 s | 0.21 |
+| f2k   | 1  | 2^20 | 2.10M | 5.74 s  | 3.71 s | 1.98 s | 2.74 |
+| f2k   | 16 | 2^20 | 2.10M | 0.61 s  | 0.34 s | 0.20 s | 0.29 |
+| fp107 | 1  | 2^20 | 2.10M | 11.09 s | 4.47 s | 6.55 s | 5.29 |
+| fp107 | 16 | 2^20 | 2.10M | 1.03 s  | 0.40 s | 0.57 s | 0.49 |
+| z2k   | 1  | 2^20 | 2.10M | 4.99 s  | 3.57 s | 1.36 s | 2.38 |
+| z2k   | 16 | 2^20 | 2.10M | 0.58 s  | 0.37 s | 0.14 s | 0.27 |
+| fp61  | 16 | 2^24 | 33.6M | 6.92 s  | 4.59 s | 1.88 s | 0.21 |
+| f2k   | 16 | 2^24 | 33.6M | 9.56 s  | 6.26 s | 2.45 s | 0.28 |
 
 A target of 2^k needs two extend rounds (each round yields `n − M` usable
 outputs), hence 2.10M correlations for 2^20. The commitment's cost is
@@ -161,8 +161,8 @@ it is nearly independent of `n_com`.
 The plain primal VOLE (`bench_vole`, 50M correlations, µs per correlation at
 1 / 4 / 16 threads; buffers allocated outside the timed region):
 
-| Instance | 1 thread | 4 threads | 16 threads | reference |
+| Instance | 1 thread | 4 threads | 16 threads | reference (measured against emp 0.3.0 on the same box) |
 |---|---|---|---|---|
-| `fp61` (Wolverine params) | 0.0223 | 0.0077 | 0.0046 | emp-zk `VoleTriple`: 0.025 / 0.0116 / 0.0059 (its LPN uses one extra worker) |
-| `f2k` GF(2^128) values | 0.0379 | 0.0125 | 0.0070 | |
-| `f2` F_2 values (Ferret COT, `fp_ferret_f2`) | 0.0208 | 0.0060 | 0.0029 | emp-ot 0.3.0 `FerretCOT`, same params: 0.0262 / 0.0073 / 0.0029 |
+| `fp61` (Wolverine params) | 0.0197 | 0.0066 | 0.0039 | emp-zk `VoleTriple`: 0.025 / 0.0116 / 0.0059 (its LPN uses one extra worker) |
+| `f2k` GF(2^128) values | 0.0383 | 0.0123 | 0.0060 | |
+| `f2` F_2 values (Ferret COT, `fp_ferret_f2`) | 0.0206 | 0.0057 | 0.0026 | emp-ot 0.3.0 `FerretCOT`, same params: 0.0262 / 0.0073 / 0.0029 |
