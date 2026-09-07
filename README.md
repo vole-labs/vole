@@ -142,7 +142,7 @@ derived per field.
 
 | Field | Threads | Target | Correlations | Total | VOLE | Commitment | µs/corr |
 |---|---|---|---|---|---|---|---|
-| fp61  | 1  | 2^20 | 2.10M | 3.76 s  | 2.17 s | 1.55 s | 1.79 |
+| fp61  | 1  | 2^20 | 2.10M | 3.63 s  | 2.07 s | 1.53 s | 1.73 |
 | fp61  | 16 | 2^20 | 2.10M | 0.45 s  | 0.25 s | 0.16 s | 0.21 |
 | f2k   | 1  | 2^20 | 2.10M | 5.74 s  | 3.71 s | 1.98 s | 2.74 |
 | f2k   | 16 | 2^20 | 2.10M | 0.61 s  | 0.34 s | 0.20 s | 0.29 |
@@ -163,6 +163,6 @@ The plain primal VOLE (`bench_vole`, 50M correlations, µs per correlation at
 
 | Instance | 1 thread | 4 threads | 16 threads | reference (measured against emp 0.3.0 on the same box) |
 |---|---|---|---|---|
-| `fp61` (Wolverine params) | 0.0197 | 0.0066 | 0.0039 | emp-zk `VoleTriple`: 0.025 / 0.0116 / 0.0059 (its LPN uses one extra worker) |
-| `f2k` GF(2^128) values | 0.0383 | 0.0123 | 0.0060 | |
-| `f2` F_2 values (Ferret COT, `fp_ferret_f2`) | 0.0206 | 0.0057 | 0.0026 | emp-ot 0.3.0 `FerretCOT`, same params: 0.0262 / 0.0073 / 0.0029 |
+| `fp61` (Wolverine params) | 0.0174 | 0.0061 | 0.0038 | emp-zk `VoleTriple`: 0.025 / 0.0116 / 0.0059 (its LPN uses one extra worker) |
+| `f2k` GF(2^128) values | 0.0245 | 0.0088 | 0.0052 | |
+| `f2` F_2 values (Ferret COT, `fp_ferret_f2`) | 0.0180 | 0.0052 | 0.0026 | emp-ot 0.3.0 `FerretCOT`, same params: 0.0262 / 0.0073 / 0.0029 |

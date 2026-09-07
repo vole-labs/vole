@@ -207,17 +207,27 @@ public:
 
   // Addition is XOR. operator+(FP) XORs into BOTH slots (the value slot is
   // overwritten by set_vec_x afterwards, matching FP61x2 / FP107x2).
+  // The two lanes are XORed as 128-bit vectors (one instruction per lane)
+  // rather than as pairs of 64-bit halves, which is what unsigned __int128
+  // XOR compiles to.
+  static inline void xor2(u128 *dst, const u128 *a, const u128 *b) {
+    block x0, x1, y0, y1;
+    std::memcpy(&x0, a, 16); std::memcpy(&x1, a + 1, 16);
+    std::memcpy(&y0, b, 16); std::memcpy(&y1, b + 1, 16);
+    x0 = _mm_xor_si128(x0, y0); x1 = _mm_xor_si128(x1, y1);
+    std::memcpy(dst, &x0, 16); std::memcpy(dst + 1, &x1, 16);
+  }
   FP2x128x2 operator+(const FP2x128 b) const {
     return FP2x128x2(val[0] ^ b.val, val[1] ^ b.val);
   }
   FP2x128x2 operator+(const FP2x128x2 b) const {
-    return FP2x128x2(val[0] ^ b.val[0], val[1] ^ b.val[1]);
+    FP2x128x2 r; xor2(r.val, val, b.val); return r;
   }
   FP2x128x2 operator-(const FP2x128 b) const { return *this + b; }
   FP2x128x2 operator-(const FP2x128x2 b) const { return *this + b; }
   FP2x128x2 negate() const { return *this; }
   static constexpr unsigned lazy_adds = 1u << 30;
-  void add_raw(const FP2x128x2 &rhs) { val[0] ^= rhs.val[0]; val[1] ^= rhs.val[1]; }
+  void add_raw(const FP2x128x2 &rhs) { xor2(val, val, rhs.val); }
   void reduce() {}
   void set_low_from_block(block b) { val[0] = FP2x128::from_blk(b); val[1] = 0; }
 

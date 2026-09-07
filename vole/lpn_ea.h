@@ -14,7 +14,6 @@
 // pre-zero `out` (or accumulate several expansions into the same `out`).
 
 #include "emp-tool/emp-tool.h"
-#include "vole/aes_ni.h"
 #include <cmath>
 
 namespace emp {
@@ -90,7 +89,7 @@ public:
   void __compute4(T *out, const T *in, int64_t i, PRP *prp, block *buf) {
     for (int m = 0; m < buf4_sz; ++m)
       buf[m] = makeBlock(i, m);
-    vole::aes_ecb_encrypt_blks(buf, (int)buf4_sz, &prp->aes);
+    prp->permute_block(buf, buf4_sz);
     int64_t *r = (int64_t *)(buf);
     for (int j = 0; j < 4 * sparcity; ++j) {
       r[j] = r[j] & k_mask;
@@ -104,7 +103,7 @@ public:
   void __compute1(T *out, const T *in, int64_t i, PRP *prp, block *buf) {
     for (int m = 0; m < buf1_sz; ++m)
       buf[m] = makeBlock(i, m);
-    vole::aes_ecb_encrypt_blks(buf, (int)buf1_sz, &prp->aes);
+    prp->permute_block(buf, buf1_sz);
     int64_t *r = (int64_t *)(buf);
     for (int j = 0; j < sparcity; ++j) {
       r[j] = r[j] & k_mask;
