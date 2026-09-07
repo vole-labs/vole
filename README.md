@@ -18,6 +18,7 @@ receivers, all provably using the same committed input.
 | `cvole.h` | `CVoleFp<IO, FP, FPS>` | **committed VOLE** (dual-LPN): VOLE on `x = H·A·e_u` plus the LPN commitment `com = H_u·e_u + H_r·e_r` (paper Sec. 4.1; `com_matrix.h`), with the consistency check `Hash(M[com]) == Hash(K[com] + com·Δ)` |
 | `ncvole.h` | `ProgNCVoleFp<IO, FP, FPS>` | multi-client C-VOLE: one committer reuses a single committed input across many verifiers |
 | `mcvole.h` | `MCVoleFp<IO, FP, FPS>` | **n-party pairwise committed VOLE**: a king seeds every party, reproduces and publishes each commitment locally, then every pair runs a committed VOLE|
+| `mvole.h` | `MVoleFp<IO, FP, FPS>` | **n-party VOLE on primal LPN** (MVZK Protocol Π_nVOLE, after Le Mans): every pair runs a plain `VoleTriple`, a verifier reuses one programming seed towards all peers so its values coincide, the king regenerates them locally (`PrimalValueLocal`), and a final consistency check (fold with a fresh coin, zero-sharings, commit-and-open of `(u^i, Z^i_j)`, three equations) pins every verifier to a single value vector. Same correlation as `mcvole.h` at the primal rate, without a standalone commitment |
 
 ## Fields (`vole/fields/`)
 
@@ -77,8 +78,8 @@ OpenSSL (`libssl-dev` / `brew install openssl@3`); `script/install.sh` installs
 those on apt or Homebrew systems and then builds.
 
 Binaries are placed in `build/bin/`: `test_vole_fp`, `test_cvole_fp`,
-`test_ncvole_fp`, `test_mcvole_fp`, `test_com_binding`, `test_mpfss_chi`,
-`test_vole_f2k`, `test_vole_f2`, `bench_vole`, `bench_cvole`.
+`test_ncvole_fp`, `test_mcvole_fp`, `test_mvole_fp`, `test_com_binding`, `test_mpfss_chi`,
+`test_vole_f2k`, `test_vole_f2`, `bench_vole`, `bench_cvole`, `bench_mvole`.
 
 To build against installed emp-tool / emp-ot 1.0 packages instead of the
 submodules, configure with `-DVOLE_USE_SYSTEM_EMP=ON`.
@@ -139,3 +140,20 @@ so four processes). All use the same port and field:
 The king publishes every party's commitment; each pairwise verifier checks its
 key share against the published commitment. Success = every party completes
 without a check failure (set `MCVOLE_DEBUG=1` to trace the per-peer schedule).
+
+**n-party VOLE on primal LPN** (`mvole.h`; same process layout, king = `n`):
+
+```sh
+./build/bin/test_mvole_fp 0 12345 fp61 &
+./build/bin/test_mvole_fp 1 12345 fp61 &
+./build/bin/test_mvole_fp 2 12345 fp61 &
+./build/bin/test_mvole_fp 3 12345 fp61        # king
+```
+
+Each verifier runs two extend rounds, sends a hash of its values to the king,
+who compares them with its local regeneration, then all verifiers run the
+Protocol-1 consistency check. A fifth argument `cheat` makes verifier 1 seed
+its VOLE towards verifier 2 differently; every verifier must then abort (the
+`mvole_fp_cheat` ctest case expects exit code 1). `bench_mvole <party> <port>
+<field> <threads> <n_party> <rounds>` reports the per-round mesh, fold and
+check times.

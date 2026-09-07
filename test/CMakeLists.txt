@@ -32,11 +32,20 @@ macro (add_mcvole_field_test _field _port)
 		WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/")
 endmacro()
 
+# mvole_fp: primal-LPN n-party VOLE, n_party+1 processes (king = party 3).
+# _extra is passed as argv[4] ("cheat" makes verifier 1 misbehave).
+macro (add_mvole_field_test _name _field _port _extra)
+	add_test(NAME ${_name}
+		COMMAND sh -c "B='${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_mvole_fp'; \"$B\" 0 ${_port} ${_field} ${_extra} & a=$!; \"$B\" 1 ${_port} ${_field} ${_extra} & b=$!; \"$B\" 2 ${_port} ${_field} ${_extra} & c=$!; \"$B\" 3 ${_port} ${_field} ${_extra} & d=$!; wait $a; r0=$?; wait $b; r1=$?; wait $c; r2=$?; wait $d; r3=$?; exit $((r0 | r1 | r2 | r3))"
+		WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/")
+endmacro()
+
 # Build the test executables (field chosen at run time via argv[3]).
 add_test_executable_with_lib(vole_fp)
 add_test_executable_with_lib(cvole_fp)
 add_test_executable_with_lib(ncvole_fp)
 add_test_executable_with_lib(mcvole_fp)
+add_test_executable_with_lib(mvole_fp)
 add_test_executable_with_lib(com_binding)
 add_test_executable_with_lib(mpfss_chi)
 add_test_executable_with_lib(vole_f2k)
@@ -69,3 +78,8 @@ add_ncvole_field_test(fp61 23510)
 add_ncvole_field_test(z2k  23610)
 add_mcvole_field_test(fp61 23710)
 add_mcvole_field_test(z2k  23810)
+add_mvole_field_test(mvole_fp_fp61  fp61 24110 "")
+add_mvole_field_test(mvole_fp_f2k   f2k  24210 "")
+# A misbehaving verifier must be caught: every verifier exits 1.
+add_mvole_field_test(mvole_fp_cheat fp61 24310 "cheat")
+set_tests_properties(mvole_fp_cheat PROPERTIES WILL_FAIL TRUE TIMEOUT 600)

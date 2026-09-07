@@ -10,3 +10,4 @@ endmacro()
 
 add_bench(bench_cvole)  # committed VOLE: throughput + A/B/shared split
 add_bench(bench_vole)   # primal VOLE: throughput
+add_bench(bench_mvole)  # primal n-party VOLE: n_party+1 processes, see the file header
