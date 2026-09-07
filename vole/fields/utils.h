@@ -3,6 +3,10 @@
 
 #include "emp-tool/emp-tool.h"
 #include <type_traits>
+#include <vector>
+#include <future>
+#include <algorithm>
+#include <cstring>
 
 #if defined(__x86_64__) && defined(__BMI2__)
 inline uint64_t mul64(uint64_t a, uint64_t b, uint64_t *c) {
@@ -25,7 +29,7 @@ inline uint64_t mul64(uint64_t a, uint64_t b, uint64_t *c) {
 // forming one latency-bound dependency chain (emp-tool's block version does
 // the same with four chains); ~4-5x faster for GF(2^128) gfmul.
 template<typename T>
-void uni_hash_coeff_gen(T *chi, T seed, int size) {
+void field_uni_hash_coeff_gen(T *chi, T seed, int size) {
   if (size <= 0) return;
   chi[0] = seed;
   int lead = size < 8 ? size : 8;
@@ -47,7 +51,7 @@ void uni_hash_coeff_gen(T *chi, T seed, int size) {
 }
 
 template<typename T>
-T vector_inn_prdt_sum_red(const T *a, const T *b, int size) {
+T field_inn_prdt_sum_red(const T *a, const T *b, int size) {
   T res = a[0] * b[0];
   for(int i = 1; i < size; ++i) {
     res = res + (a[i] * b[i]);
@@ -122,7 +126,7 @@ inline void gen_binary_chi(bool *chi, emp::block seed, int n) {
   int set = 0;
   while (set < n / 2) {
     uint32_t r;
-    prg.random_data(&r, sizeof(r));
+    prg.random_data_unaligned(&r, sizeof(r));
     uint32_t idx = r % (uint32_t)n;
     if (!chi[idx]) { chi[idx] = true; ++set; }
   }

@@ -1,8 +1,8 @@
 #ifndef SPFSS_RECVER_FP_H__
 #define SPFSS_RECVER_FP_H__
 #include <iostream>
-#include "emp-ot/emp-ot.h"
 #include "emp-tool/emp-tool.h"
+#include "vole/twokeyprp.h"
 #include "vole/fields/field_config.h"
 
 using namespace emp;
@@ -166,8 +166,8 @@ public:
       block tseed = ring_tree_seed(seed, tree_idx);
       FP *chi = new FP[leave_n];
       FP digest;
-      digest.from_block(Hash::hash_for_block(&tseed, sizeof(block)));
-      uni_hash_coeff_gen(chi, digest, leave_n);
+      digest.from_block(tseed);  // tseed = AES_seed(tree_idx) is already pseudorandom; no hash needed
+      field_uni_hash_coeff_gen(chi, digest, leave_n);
 
       chi_alpha = chi[choice_pos];
 

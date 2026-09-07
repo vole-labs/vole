@@ -1,3 +1,12 @@
+#include <cstdlib>
+#include <iostream>
+// emp-tool 1.0 dropped parse_party_and_port (it has parse_party + $EMP_PORT);
+// the drivers here keep taking the port positionally.
+inline void parse_party_and_port(char **argv, int *party, int *port) {
+  *party = std::atoi(argv[1]);
+  *port = std::atoi(argv[2]);
+}
+
 #if defined(__linux__)
 #include <sys/time.h>
 #include <sys/resource.h>

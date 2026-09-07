@@ -2,8 +2,8 @@
 #
 # One-shot setup for vole on a fresh machine:
 #   1. install system build dependencies (cmake, git, compiler, OpenSSL)
-#   2. fetch the EMP toolkit git submodules (emp-tool / emp-ot 0.3.0, pinned
-#      in .gitmodules; vole uses only emp-tool + emp-ot, no emp-zk)
+#   2. fetch the EMP toolkit git submodules (emp-tool / emp-ot 1.0 line,
+#      pinned in .gitmodules; vole uses only emp-tool + emp-ot, no emp-zk)
 #   3. build vole (this repo) against the submodules
 #
 # Supports Ubuntu/Debian (apt) and macOS (Homebrew).
@@ -49,7 +49,7 @@ case "$OS" in
 esac
 
 # ---- 2. EMP toolkit (git submodules, pinned) --------------------------------
-log "Fetching EMP submodules (emp-tool / emp-ot 0.3.0)"
+log "Fetching EMP submodules (emp-tool / emp-ot 1.0)"
 git -C "$REPO_ROOT" submodule update --init
 
 # ---- 3. build vole -------------------------------------------------------

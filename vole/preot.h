@@ -1,6 +1,8 @@
-#ifndef _PRE_OT__
-#define _PRE_OT__
-#include "emp-ot/emp-ot.h"
+#ifndef VOLE_PRE_OT_H__
+#define VOLE_PRE_OT_H__
+// Precomputed OT over a batch of correlated OTs (send_pre / recv_pre), then
+// per-tree chosen-message OT via one-time pads (send / recv). Vendored from
+// emp-ot 0.3.0's ferret/preot.h; removed upstream in the 1.0 rewrite.
 #include "emp-tool/emp-tool.h"
 namespace emp {
 
@@ -10,10 +12,10 @@ public:
   block *pre_data = nullptr;
   bool *bits = nullptr;
   int n;
-  vector<block *> pointers;
-  vector<const bool *> choices;
-  vector<const block *> pointers0;
-  vector<const block *> pointers1;
+  std::vector<block *> pointers;
+  std::vector<const bool *> choices;
+  std::vector<const block *> pointers0;
+  std::vector<const block *> pointers1;
 
   CCRH ccrh;
   int length, count;
@@ -35,20 +37,20 @@ public:
   }
   void send_pre(block *data, block in_Delta) {
     Delta = in_Delta;
-    ccrh.Hn(pre_data, data, 0, n, pre_data + n);
+    ccrh.Hn(pre_data, data, n);
     xorBlocks_arr(pre_data + n, data, Delta, n);
-    ccrh.Hn(pre_data + n, pre_data + n, 0, n);
+    ccrh.Hn(pre_data + n, n);
   }
 
   void recv_pre(block *data, bool *b) {
     memcpy(bits, b, n);
-    ccrh.Hn(pre_data, data, 0, n);
+    ccrh.Hn(pre_data, data, n);
   }
 
   void recv_pre(block *data) {
     for (int i = 0; i < n; ++i)
       bits[i] = getLSB(data[i]);
-    ccrh.Hn(pre_data, data, 0, n);
+    ccrh.Hn(pre_data, data, n);
   }
 
   void choices_sender() { count += length; }
@@ -83,4 +85,4 @@ public:
   }
 };
 } // namespace emp
-#endif // _PRE_OT__
+#endif // VOLE_PRE_OT_H__

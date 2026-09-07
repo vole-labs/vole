@@ -13,6 +13,7 @@
 #include "vole/vole-fp.h"
 #include "vole/fields/field_config.h"
 #include <string>
+#include "test/test.h"
 
 using namespace emp;
 using namespace std;

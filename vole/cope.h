@@ -6,7 +6,7 @@
 #include "vole/fields/field_config.h"
 
 template <typename IO, typename FP> 
-class Cope {
+class CopeFp {
 public:
   int party;
   IO *io;
@@ -15,12 +15,12 @@ public:
   PRG *G0 = nullptr, *G1 = nullptr;
   bool *delta_bool = nullptr;
 
-  Cope(int party, IO *io) {
+  CopeFp(int party, IO *io) {
     this->party = party;
     this->io = io;
   }
 
-  ~Cope() {
+  ~CopeFp() {
     if (G0 != nullptr)
       delete[] G0;
     if (G1 != nullptr)
@@ -36,7 +36,7 @@ public:
     delta64_to_bool(delta_bool, delta.val, m);
 
     K = new block[m];
-    OTCO<IO> otco(io);
+    emp::CSW otco(io);  // base OT (malicious-secure); 0.3.0 used OTCO
     otco.recv(K, delta_bool, m);
 
     G0 = new PRG[m];
@@ -51,7 +51,7 @@ public:
     K = new block[2 * m];
     PRG prg;
     prg.random_block(K, 2 * m);
-    OTCO<IO> otco(io);
+    emp::CSW otco(io);
     otco.send(K, K + m, m);
 
     G0 = new PRG[m];
@@ -79,7 +79,7 @@ public:
     for (std::size_t i = 0; i < m; ++i) {
       for(std::size_t j = 0; j < size; ++j) w[i*size+j].assign_no_mod((buf_t)0);
       for(std::size_t k = 0; k < n_pack; ++k) {
-        G0[k*m+i].random_data(buf, size * sizeof(buf_t));
+        G0[k*m+i].random_data_unaligned(buf, size * sizeof(buf_t));
         for (std::size_t j = 0; j < size; ++j) {
           w[i * size + j] = w[i * size + j] + (((buf[j] >> k*m)&FP::PR_mask) << (k*m));
         }
@@ -120,8 +120,8 @@ public:
         w1[i*size+j].assign_no_mod((buf_t)0);
       }
       for(std::size_t k = 0; k < n_pack; ++k) {
-        G0[k*m+i].random_data(buf0, size * sizeof(buf_t));
-        G1[k*m+i].random_data(buf1, size * sizeof(buf_t));
+        G0[k*m+i].random_data_unaligned(buf0, size * sizeof(buf_t));
+        G1[k*m+i].random_data_unaligned(buf1, size * sizeof(buf_t));
         for (std::size_t j = 0; j < size; ++j) {
           w0[i * size + j] = w0[i * size + j] + (((buf0[j] >> (k*m)) & FP::PR_mask) << (k*m));
           w1[i * size + j] = w1[i * size + j] + (((buf1[j] >> (k*m)) & FP::PR_mask) << (k*m));

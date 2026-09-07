@@ -6,7 +6,7 @@
 // Dual-LPN (expand-accumulate) VOLE templated on a finite field or ring (see
 // vole/fields/), plus the LPN commitment of the paper (Sec. 4.1). Built from
 // the field-generic silent-VOLE components MpfssRegFp (regular multi-point
-// FSS), Base_svole (COPE-based base sVOLE), ProgBaseCot/OTPre, and the
+// FSS), BaseSvoleFp (COPE-based base sVOLE), ProgBaseCot/OTPre, and the
 // expand-accumulate code AccumFp + LpnFpEA.
 //
 // Why dual-LPN: a committed VOLE must publish a commitment that *binds* the
@@ -22,7 +22,7 @@
 // seed buffer for the next extend. So COPE runs exactly once (in setup), not
 // per extend.
 //
-// Roles (matching MpfssRegFp / Base_svole):
+// Roles (matching MpfssRegFp / BaseSvoleFp):
 //   ALICE = verifier   : holds Delta and the keys K[x], K[com].
 //   BOB   = committer   : holds the values x, com and the macs M[x], M[com],
 //                         such that M = K + value * Delta.
@@ -172,7 +172,7 @@ public:
 
   ThreadPool *pool = nullptr;
   ProgBaseCot<IO> *cot = nullptr;
-  Base_svole<IO, FP> *svole = nullptr;
+  BaseSvoleFp<IO, FP> *svole = nullptr;
 
   MpfssRegFp<IO, FP, FPS> *mpfss = nullptr;      // e_u
   MpfssRegFp<IO, FP, FPS> *mpfss_com = nullptr;  // e_r
@@ -259,7 +259,7 @@ public:
         xin[i].rand(prog_prg);
     } else {
       uint64_t *buf = new uint64_t[n];
-      prog_prg.random_data(buf, n * sizeof(uint64_t));
+      prog_prg.random_data_unaligned(buf, n * sizeof(uint64_t));
       for (std::size_t i = 0; i < n; ++i) {
         buf[i] = buf[i] & FP::PR_mask;
         xin[i].assign_no_mod(FP::copy_compose(buf[i]));
@@ -270,7 +270,7 @@ public:
 
   // Committer-side base sVOLE whose VALUES are derived from prog_prg, so that
   // the same prog_seed reproduces the same e_u (hence the same x and com)
-  // across sessions / verifiers. Mirrors Base_svole's no-x overload but feeds
+  // across sessions / verifiers. Mirrors BaseSvoleFp's no-x overload but feeds
   // prog_prg instead of a fresh PRG. `cnt` correlations need cnt+1 inputs.
   void recv_base_svole_prog(FPS *mac, std::size_t cnt) {
     FP *xin = new FP[cnt + 1];
@@ -309,9 +309,9 @@ public:
     init_matrices();
 
     if (party == ALICE)
-      svole = new Base_svole<IO, FP>(party, io, Delta);
+      svole = new BaseSvoleFp<IO, FP>(party, io, Delta);
     else
-      svole = new Base_svole<IO, FP>(party, io);
+      svole = new BaseSvoleFp<IO, FP>(party, io);
 
     cu = mpfss->tree_n + 1;       // base sVOLEs for the e_u MPFSS
     cr = mpfss_com->tree_n + 1;   // base sVOLEs for the e_r MPFSS

@@ -18,7 +18,7 @@ public:
   std::size_t item_n, idx_max, m;
   std::size_t tree_height, leave_n;
   std::size_t tree_n;
-  std::size_t nth;  // worker threads actually used = min(threads, tree_n) >= 1
+  std::size_t nth;  // worker threads actually used = std::min(threads, tree_n) >= 1
   bool is_malicious;
 
   PRG prg;
@@ -100,16 +100,24 @@ public:
   void mpfss_sender(FP *sparse_vector,
              FP *triple_yz_key,
              OTPre<IO> *ot) {
-    vector<SpfssSenderFp<IO, FP> *> senders;
-    vector<future<void>> fut;
+    std::vector<SpfssSenderFp<IO, FP> *> senders;
+    std::vector<std::future<void>> fut;
+    // All tree seeds from one PRG call; one scratch tree per worker (only used
+    // when FP is not block-sized, e.g. FP61's 8-byte keys).
+    std::vector<block> seeds(tree_n);
+    prg.random_block(seeds.data(), tree_n);
+    std::size_t width = tree_n / nth;
+    std::vector<block *> scratch(nth, nullptr);
+    if (sizeof(FP) != sizeof(block))
+      for (std::size_t th = 0; th < nth; ++th) scratch[th] = new block[leave_n];
     for (std::size_t i = 0; i < tree_n; ++i) {
-      senders.push_back(new SpfssSenderFp<IO, FP>(netio, tree_height));
+      std::size_t th = (width == 0) ? 0 : std::min(i / width, nth - 1);
+      senders.push_back(new SpfssSenderFp<IO, FP>(netio, tree_height, seeds[i], scratch[th]));
       ot->choices_sender();
     }
     netio->flush();
     ot->reset();
 
-    std::size_t width = tree_n / nth;
     std::size_t start = 0, end = width;
     for (std::size_t th = 0; th + 1 < nth; ++th) {
       fut.push_back(pool->enqueue(
@@ -160,7 +168,7 @@ public:
 
       block *seed = new block[nth];
       seed_expand(seed, nth);
-      vector<future<void>> fut;
+      std::vector<std::future<void>> fut;
       std::size_t start = 0, end = width;
       for (std::size_t th = 0; th + 1 < nth; ++th) {
         fut.push_back(
@@ -184,14 +192,16 @@ public:
 
     for (auto p : senders)
       delete p;
+    for (auto s : scratch)
+      if (s != nullptr) delete[] s;
   }
 
   void mpfss_recver(FPS *sparse_vector,
              FPS *triple_yz_val_mac,
              OTPre<IO> *ot) {
 
-    vector<SpfssRecverFp<IO, FP> *> recvers;
-    vector<future<void>> fut;
+    std::vector<SpfssRecverFp<IO, FP> *> recvers;
+    std::vector<std::future<void>> fut;
     for (std::size_t i = 0; i < tree_n; ++i) {
       recvers.push_back(new SpfssRecverFp<IO, FP>(netio, tree_height));
       ot->choices_recver(recvers[i]->b);
@@ -257,7 +267,7 @@ public:
 
       block *seed = new block[nth];
       seed_expand(seed, nth);
-      vector<future<void>> fut;
+      std::vector<std::future<void>> fut;
       std::size_t start = 0, end = width;
       for (std::size_t th = 0; th + 1 < nth; ++th) {
         fut.push_back(
@@ -291,11 +301,11 @@ public:
 
   // Run fn(i) for every tree i in [0, tree_n), split across the thread pool.
   // Used to parallelize the (I/O-free) GGM tag/Gamma compute before the batched
-  // sends. Uses nth = min(threads, tree_n) workers.
+  // sends. Uses nth = std::min(threads, tree_n) workers.
   template <typename Fn>
   void ggm_parallel(Fn fn) {
     std::size_t width = tree_n / nth;
-    vector<future<void>> fut;
+    std::vector<std::future<void>> fut;
     std::size_t s = 0, e = width;
     for (std::size_t th = 0; th + 1 < nth; ++th) {
       fut.push_back(pool->enqueue([s, e, fn]() {

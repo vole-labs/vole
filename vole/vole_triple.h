@@ -189,7 +189,7 @@ public:
     // generate tree_n*(depth-1) COTs
     // generate 2*tree_n+k_pre triples and extend
     std::size_t M_pre0 = pre_ot_ini0.n;
-    Base_svole<IO, FP> *svole0;
+    BaseSvoleFp<IO, FP> *svole0;
     std::size_t triple_n0 = mpfss_pre0.base_pairs() + param.k_pre0;
     FP *pre_yz0_send = nullptr;
     FPS *pre_yz0_recv = nullptr;
@@ -197,7 +197,7 @@ public:
       cot->prog_cot_gen(&pre_ot_ini0, M_pre0);
 
       FP *key = new FP[triple_n0];
-      svole0 = new Base_svole<IO, FP>(party, ios[0], Delta);
+      svole0 = new BaseSvoleFp<IO, FP>(party, ios[0], Delta);
       svole0->compute_send64(key, triple_n0);
       vole_traits<FPS>::normalize_base_keys(key, triple_n0);
 
@@ -216,7 +216,7 @@ public:
 
       FPS *mac = new FPS[triple_n0];
       FP *x = new FP[triple_n0+1];
-      svole0 = new Base_svole<IO, FP>(party, ios[0]);
+      svole0 = new BaseSvoleFp<IO, FP>(party, ios[0]);
 
       if(FP::PR_num_pack == 1) {
         for(std::size_t i = 0; i < triple_n0; ++i)

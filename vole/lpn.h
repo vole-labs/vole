@@ -2,6 +2,7 @@
 #define _LPN_FP_H__
 
 #include "emp-tool/emp-tool.h"
+#include "vole/aes_ni.h"
 
 template <int d = 10>
 class LpnFp {
@@ -37,7 +38,7 @@ public:
     block tmp[10];
     for (int m = 0; m < 10; ++m)
       tmp[m] = makeBlock(i, m);
-    prp->permute_block(tmp, 10);
+    vole::aes_ecb_encrypt_blks(tmp, 10, &prp->aes);
     // Indices are masked as they are consumed. The reduction schedule folds
     // at compile time: raw adds, one reduce every FP::lazy_adds terms (2 per
     // output for fp61, matching the hand-unrolled loop in emp-zk).
@@ -71,7 +72,7 @@ public:
     block tmp[3];
     for (int m = 0; m < 3; ++m)
       tmp[m] = makeBlock(i, m);
-    prp->permute_block(tmp, 3);
+    vole::aes_ecb_encrypt_blks(tmp, 3, &prp->aes);
     const uint32_t *r = (const uint32_t *)(tmp);
     FP tmpv = K[i];
 #pragma GCC unroll 10
@@ -95,15 +96,15 @@ public:
 
   template<typename FP>
   void compute(FP *K, const FP* preK) {
-    vector<std::future<void>> fut;
+    std::vector<std::future<void>> fut;
     int width = n / threads;
     for (int i = 0; i < threads - 1; ++i) {
       int start = i * width;
-      int end = min((i + 1) * width, n);
+      int end = std::min((i + 1) * width, n);
       fut.push_back(pool->enqueue([this, K, preK, start, end]() { task(K, preK, start, end); }));
     }
     int start = (threads-1) * width;
-    int end = min((threads + 1) * width, n);
+    int end = std::min((threads + 1) * width, n);
     task(K, preK, start, end);
 
     for (auto &f : fut)

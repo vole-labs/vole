@@ -145,8 +145,8 @@ class FP107 {
     void rand(PRNG& prg) {
         // Pull 16 bytes, mask to 107 bits, conditionally reduce.
         uint64_t lo, hi;
-        prg.random_data(&lo, sizeof(uint64_t));
-        prg.random_data(&hi, sizeof(uint64_t));
+        prg.random_data_unaligned(&lo, sizeof(uint64_t));
+        prg.random_data_unaligned(&hi, sizeof(uint64_t));
         u128 x = ((u128)hi << 64) | (u128)lo;
         x &= PR;             // bring into [0, 2^107 - 1]
         if (x == PR) x = 0;  // collapse the single non-canonical value

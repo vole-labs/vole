@@ -1,46 +1,53 @@
-# 3.5 is the lowest floor accepted by CMake 4.x (it dropped <3.5 compatibility).
-cmake_minimum_required (VERSION 3.5)
-project (vole)
+cmake_minimum_required (VERSION 3.21)
+project (vole LANGUAGES C CXX)
 
 # ---------------------------------------------------------------------------
-# EMP toolkit dependency: emp-tool + emp-ot at their 0.3.0 releases.
+# EMP toolkit dependency: emp-tool and emp-ot 1.0 (main line), C++20.
 #
-# Default: build from the git submodules in thirdparty/ (pinned commits; run
+# Default: build both from the git submodules in thirdparty/ (run
 #   git submodule update --init
-# after cloning). emp-ot is header-only; emp-tool contributes one library.
-#
-# -DVOLE_USE_SYSTEM_EMP=ON uses an installed EMP instead (must be 0.3.0: the
-# 1.0 rewrite removed BaseCot/ferret and does not build this code).
+# after cloning). -DVOLE_USE_SYSTEM_EMP=ON uses installed packages instead
+# (find_package(emp-tool 1.0) / find_package(emp-ot 1.0)).
 # ---------------------------------------------------------------------------
-option(VOLE_USE_SYSTEM_EMP "Use an installed EMP 0.3.0 instead of the submodules" OFF)
+option(VOLE_USE_SYSTEM_EMP "Use installed emp-tool/emp-ot 1.0 instead of the submodules" OFF)
+
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+endif()
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 if(VOLE_USE_SYSTEM_EMP)
-  find_path(CMAKE_FOLDER NAMES cmake/emp-tool-config.cmake)
-  include(${CMAKE_FOLDER}/cmake/emp-base.cmake)
-  # emp-ot's config pulls in emp-tool; EMP-OT_LIBRARIES is emp-tool's library.
-  find_package(emp-ot REQUIRED)
-  include_directories(${EMP-OT_INCLUDE_DIRS})
+  find_package(emp-tool 1.0 REQUIRED)
+  find_package(emp-ot 1.0 REQUIRED)
 else()
   set(EMP_TOOL_DIR ${CMAKE_SOURCE_DIR}/thirdparty/emp-tool)
   set(EMP_OT_DIR   ${CMAKE_SOURCE_DIR}/thirdparty/emp-ot)
-  if(NOT EXISTS ${EMP_TOOL_DIR}/emp-tool/emp-tool.h OR
-     NOT EXISTS ${EMP_OT_DIR}/emp-ot/emp-ot.h)
-    message(FATAL_ERROR
-      "EMP submodules are missing. Run:  git submodule update --init")
+  if(NOT EXISTS ${EMP_TOOL_DIR}/CMakeLists.txt OR NOT EXISTS ${EMP_OT_DIR}/CMakeLists.txt)
+    message(FATAL_ERROR "EMP submodules are missing. Run:  git submodule update --init")
   endif()
-  # emp-base.cmake: compiler flags (-march=native -maes -std=c++11 -O3),
-  # OpenSSL root on macOS, bin/ output dir, optional THREADING/rdseed flags.
-  set(CMAKE_FOLDER ${EMP_TOOL_DIR})
-  include(${EMP_TOOL_DIR}/cmake/emp-base.cmake)
-  find_package(OpenSSL REQUIRED)
-  include_directories(${OPENSSL_INCLUDE_DIR} ${EMP_TOOL_DIR} ${EMP_OT_DIR})
-  add_definitions(-DEMP_CIRCUIT_PATH=${EMP_TOOL_DIR}/emp-tool/circuits/files/)
-  add_library(emp-tool STATIC ${EMP_TOOL_DIR}/emp-tool/emp-tool.cpp)
-  target_link_libraries(emp-tool ${OPENSSL_LIBRARIES})
-  set(EMP-OT_LIBRARIES emp-tool)
+  set(EMP_TOOL_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+  set(EMP_TOOL_BUILD_BENCHMARKS OFF CACHE BOOL "" FORCE)
+  set(EMP_TOOL_INSTALL OFF CACHE BOOL "" FORCE)
+  set(EMP_OT_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+  set(EMP_OT_INSTALL OFF CACHE BOOL "" FORCE)
+  add_subdirectory(${EMP_TOOL_DIR} ${CMAKE_BINARY_DIR}/emp-tool)
+  # emp-ot's CMakeLists calls find_package(emp-tool 1.0 REQUIRED). Point it at
+  # a shim config that just confirms the in-tree target exists.
+  set(emp-tool_DIR ${CMAKE_SOURCE_DIR}/cmake/emp-tool-shim CACHE PATH "" FORCE)
+  add_subdirectory(${EMP_OT_DIR} ${CMAKE_BINARY_DIR}/emp-ot)
 endif()
 
-include_directories(${CMAKE_SOURCE_DIR})  # so "vole/..." headers resolve
+# Flags for this repo's targets (the EMP targets carry their own via
+# target_compile_features / options).
+add_library(vole_flags INTERFACE)
+target_compile_features(vole_flags INTERFACE cxx_std_20)
+target_compile_options(vole_flags INTERFACE
+  -O3 -Wall -Wno-ignored-attributes -Wno-unused-result -funroll-loops
+  -march=native -maes -mrdseed -pthread)
+target_include_directories(vole_flags INTERFACE ${CMAKE_SOURCE_DIR})
+target_link_libraries(vole_flags INTERFACE emp-ot::emp-ot emp-tool::emp-tool pthread)
+# Name used by test/ and bench/ CMakeLists.
+set(EMP-OT_LIBRARIES vole_flags)
 
 ENABLE_TESTING()
 ADD_SUBDIRECTORY(test)   # correctness tests

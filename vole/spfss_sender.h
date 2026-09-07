@@ -1,8 +1,8 @@
 #ifndef SPFSS_SENDER_FP_H__
 #define SPFSS_SENDER_FP_H__
 #include <iostream>
-#include "emp-ot/emp-ot.h"
 #include "emp-tool/emp-tool.h"
+#include "vole/twokeyprp.h"
 #include "vole/fields/field_config.h"
 
 using namespace emp;
@@ -18,11 +18,16 @@ public:
   IO *io;
   std::size_t depth;
   std::size_t leave_n;
-  PRG prg;
+  // Optional caller-owned scratch (leave_n blocks) for the non-block-sized
+  // FP case; avoids one 2^depth-block allocation per tree.
+  block *scratch = nullptr;
 
-  SpfssSenderFp(IO *io, std::size_t depth_in) {
+  // The tree seed is supplied by the caller (MpfssRegFp draws all seeds from
+  // one PRG); constructing a PRG per tree cost ~25 us each in emp-tool 1.0.
+  SpfssSenderFp(IO *io, std::size_t depth_in, block seed_in, block *scratch_in = nullptr)
+      : scratch(scratch_in) {
     initialization(io, depth_in);
-    prg.random_block(&seed, 1);
+    seed = seed_in;
   }
 
   void initialization(IO *io, std::size_t depth_in) {
@@ -49,6 +54,8 @@ public:
     block *tree;
     if (sizeof(FP) == sizeof(block)) {
       tree = reinterpret_cast<block *>(ggm_tree_mem);
+    } else if (scratch != nullptr) {
+      tree = scratch;
     } else {
       ggm_tree = new block[leave_n];
       tree = ggm_tree;
@@ -147,10 +154,10 @@ public:
       block tseed = ring_tree_seed(seed, tree_idx);
       FP *chi = new FP[leave_n];
       FP digest;
-      digest.from_block(Hash::hash_for_block(&tseed, sizeof(block)));
-      uni_hash_coeff_gen(chi, digest, leave_n);
+      digest.from_block(tseed);  // tseed = AES_seed(tree_idx) is already pseudorandom; no hash needed
+      field_uni_hash_coeff_gen(chi, digest, leave_n);
       // V = \sum{chi_i*v_i}
-      V = vector_inn_prdt_sum_red(chi, input, leave_n);
+      V = field_inn_prdt_sum_red(chi, input, leave_n);
       delete[] chi;
     }
     return V;

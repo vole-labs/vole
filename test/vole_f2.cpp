@@ -7,6 +7,7 @@
 #include "emp-tool/emp-tool.h"
 #include "vole/vole_f2k.h"
 #include <vector>
+#include "test.h"
 
 using namespace emp;
 int party, port;

@@ -9,6 +9,7 @@
 #include "vole/fields/fp61.h"
 #include "vole/fields/fp61x2.h"
 #include <vector>
+#include "test.h"
 
 using namespace emp;
 int party, port;

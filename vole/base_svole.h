@@ -6,36 +6,36 @@
 #include "vole/fields/field_config.h"
 
 template <typename IO, typename FP> 
-class Base_svole {
+class BaseSvoleFp {
 public:
   int party;
   std::size_t m;
   IO *io;
-  Cope<IO, FP> *cope;
+  CopeFp<IO, FP> *cope;
   FP Delta;
   PRG prg;
   std::size_t num_pack;
 
   // SENDER
-  Base_svole(int party, IO *io, FP Delta) {
+  BaseSvoleFp(int party, IO *io, FP Delta) {
     this->party = party;
     this->io = io;
-    cope = new Cope<IO, FP>(party, io);
+    cope = new CopeFp<IO, FP>(party, io);
     this->Delta = Delta;
     num_pack = (FP::PR_num_pack>1)?(FP::PR_num_pack-1):1;
     cope->initialize(Delta, FP::slot_stride_bits*num_pack);
   }
 
   // RECEIVER
-  Base_svole(int party, IO *io) {
+  BaseSvoleFp(int party, IO *io) {
     this->party = party;
     this->io = io;
-    cope = new Cope<IO, FP>(party, io);
+    cope = new CopeFp<IO, FP>(party, io);
     num_pack = (FP::PR_num_pack>1)?(FP::PR_num_pack-1):1;
     cope->initialize(FP::slot_stride_bits*num_pack);
   }
 
-  ~Base_svole() { delete cope; }
+  ~BaseSvoleFp() { delete cope; }
 
   // sender
   void compute_send64(FP *share, std::size_t size) {
@@ -69,7 +69,7 @@ public:
   template<typename FPS>
   void compute_recv64(FPS *share, std::size_t size) {
     uint64_t *buf = new uint64_t[size+1];
-    prg.random_data(buf, (size+1) * sizeof(uint64_t));
+    prg.random_data_unaligned(buf, (size+1) * sizeof(uint64_t));
     FP *x = new FP[size+1];
     if(FP::PR_num_pack == 1) {
       for(std::size_t i = 0; i < size+1; ++i)
@@ -92,9 +92,9 @@ public:
     seed.rand(prg);
     seed.send(io);
     FP *chi = new FP[size];
-    uni_hash_coeff_gen(chi, seed, size);
+    field_uni_hash_coeff_gen(chi, seed, size);
 
-    FP y = vector_inn_prdt_sum_red(share, chi, size);
+    FP y = field_inn_prdt_sum_red(share, chi, size);
     y = y + b;
     FP xz[2];
     io->recv_data(xz, 2 * sizeof(FP));
@@ -112,11 +112,11 @@ public:
     FP seed;
     seed.recv(io);
     FP *chi = new FP[size];
-    uni_hash_coeff_gen(chi, seed, size);
+    field_uni_hash_coeff_gen(chi, seed, size);
 
     FP xz[2];
-    xz[0] = vector_inn_prdt_sum_red(share, chi, size);
-    xz[1] = vector_inn_prdt_sum_red(x, chi, size);
+    xz[0] = field_inn_prdt_sum_red(share, chi, size);
+    xz[1] = field_inn_prdt_sum_red(x, chi, size);
     xz[0] = xz[0] + c;
     xz[1] = xz[1] + a;
     io->send_data(xz, 2 * sizeof(FP));

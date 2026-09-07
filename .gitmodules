@@ -3,4 +3,4 @@
 	url = https://github.com/emp-toolkit/emp-tool.git
 [submodule "thirdparty/emp-ot"]
 	path = thirdparty/emp-ot
-	url = https://github.com/emp-toolkit/emp-ot.git
+	url = https://github.com/carlweng/emp-ot.git

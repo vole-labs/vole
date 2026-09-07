@@ -54,10 +54,10 @@ field-only.
 
 ## Build
 
-The EMP toolkit dependency (`emp-tool` and `emp-ot` at their **0.3.0**
-releases) is vendored as git submodules under `thirdparty/`, pinned to the
-exact commits the code was built against. Newer EMP releases (the 1.0 rewrite)
-changed the OT API and do not build this code; `emp-zk` is not needed.
+The EMP toolkit dependency is vendored as git submodules under `thirdparty/`:
+`emp-tool` (upstream main, 1.0 line) and `emp-ot` (the `carlweng/emp-ot`
+fork of the 1.0 line, which adds multithreaded silent sVOLE). Both build in
+tree; no system-wide EMP install is needed. The code is C++20.
 
 ```sh
 git clone --recursive <repo-url>        # or: git submodule update --init
@@ -65,18 +65,22 @@ cmake -S . -B build
 cmake --build build -j
 ```
 
-The only system requirements are a C++11 compiler, CMake ≥ 3.5, and OpenSSL
-(`libssl-dev` / `brew install openssl@3`); `script/install.sh` installs those
-on apt or Homebrew systems and then builds.
+System requirements: a C++20 compiler (GCC 11+ / Clang 14+), CMake ≥ 3.21,
+OpenSSL (`libssl-dev` / `brew install openssl@3`); `script/install.sh` installs
+those on apt or Homebrew systems and then builds.
 
 Binaries are placed in `build/bin/`: `test_vole_fp`, `test_cvole_fp`,
 `test_ncvole_fp`, `test_mcvole_fp`, `test_com_binding`, `test_mpfss_chi`,
-`bench_vole`, `bench_cvole`.
+`test_vole_f2k`, `test_vole_f2`, `bench_vole`, `bench_cvole`.
 
-To build against an EMP 0.3.0 that is already installed instead of the
-submodules, configure with `-DVOLE_USE_SYSTEM_EMP=ON` (add
-`-DCMAKE_PREFIX_PATH=<prefix> -DCMAKE_FOLDER=<prefix>` if it is not in
-`/usr/local`).
+To build against installed emp-tool / emp-ot 1.0 packages instead of the
+submodules, configure with `-DVOLE_USE_SYSTEM_EMP=ON`.
+
+What this repo takes from EMP: `SoftSpoken` (correlated OTs for the GGM
+levels, `vole/base_cot.h`), `CSW` (base OTs for COPE), and emp-tool's
+primitives (`PRG`, `PRP`, `CCRH`, `Hash`, `NetIO`, `ThreadPool`, `gfmul`). The
+GGM node expander and the precomputed-OT layer that emp-ot 1.0 dropped are
+vendored in `vole/twokeyprp.h` and `vole/preot.h`.
 
 ## Running the tests
 

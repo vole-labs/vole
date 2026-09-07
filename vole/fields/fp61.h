@@ -156,7 +156,7 @@ public:
   template<typename PRNG>
   void rand(PRNG &prg) {
     uint64_t raw;
-    prg.random_data(&raw, sizeof(uint64_t));
+    prg.random_data_unaligned(&raw, sizeof(uint64_t));
     raw = mod(raw);
     this->val = raw;
   }

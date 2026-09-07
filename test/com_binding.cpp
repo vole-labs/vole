@@ -88,7 +88,7 @@ void rank_checks(CVoleFp<NetIO, FP, FPS> &king, const CVoleFpParam &P,
     for (std::size_t j = 0; j < s; ++j) {
       std::size_t base = (j < P.t) ? j * leave_u : N + (j - P.t) * leave_r;
       std::size_t leave = (j < P.t) ? leave_u : leave_r;
-      uint64_t r; prg.random_data(&r, 8);
+      uint64_t r; prg.random_data_unaligned(&r, 8);
       std::size_t q = base + (r % leave);
       if (q == pos[j]) q = base + ((r + 1) % leave);
       p2.push_back(q);

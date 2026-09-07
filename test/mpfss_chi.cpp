@@ -45,7 +45,7 @@ void run(const char *tag) {
   std::vector<FP> V(trees);
   std::size_t distinct_pairs = 0, pairs = 0;
   for (std::size_t i = 0; i < trees; ++i) {
-    SpfssSenderFp<NetIO, FP> snd(nullptr, depth);
+    SpfssSenderFp<NetIO, FP> snd(nullptr, depth, makeBlock(11, (uint64_t)i));
     V[i] = snd.consistency_check_msg_gen(nullptr, seed, leaves.data(), i);
   }
   for (std::size_t a = 0; a < trees; ++a)
@@ -74,9 +74,9 @@ void run(const char *tag) {
       delete[] chi;
     } else {
       block tseed = ring_tree_seed(seed, i);
-      FP d; d.from_block(Hash::hash_for_block(&tseed, sizeof(block)));
+      FP d; d.from_block(tseed);  // same derivation as spfss_*: d = AES_seed(tree_idx)
       std::vector<FP> chi(leave_n);
-      uni_hash_coeff_gen(chi.data(), d, (int)leave_n);
+      field_uni_hash_coeff_gen(chi.data(), d, (int)leave_n);
       expect = chi[rcv.choice_pos];
     }
     if (!(chi_alpha == expect)) alpha_ok = false;
