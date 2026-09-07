@@ -83,8 +83,10 @@ Binaries are placed in `build/bin/`: `test_vole_fp`, `test_cvole_fp`,
 To build against installed emp-tool / emp-ot 1.0 packages instead of the
 submodules, configure with `-DVOLE_USE_SYSTEM_EMP=ON`.
 
-What this repo takes from EMP: `SoftSpoken` (correlated OTs for the GGM
-levels, `vole/base_cot.h`), `CSW` (base OTs for COPE), and emp-tool's
+What this repo takes from EMP: `SoftSpoken<4>` (the only OT extension: the
+correlated OTs for the GGM levels, `vole/base_cot.h`; `-DVOLE_COT_IKNP`
+selects IKNP, `-DVOLE_COT_SOFTSPOKEN_K=k` another k), `CSW` (base OTs for
+COPE), and emp-tool's
 primitives (`PRG`, `PRP`, `CCRH`, `Hash`, `NetIO`, `ThreadPool`, `gfmul`). The
 GGM node expander and the precomputed-OT layer that emp-ot 1.0 dropped are
 vendored in `vole/twokeyprp.h` and `vole/preot.h`.

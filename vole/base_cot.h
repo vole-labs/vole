@@ -3,9 +3,14 @@
 
 // Correlated OTs for the GGM tree levels, on an emp-ot 1.0 OT extension
 // (malicious-secure; default base OT CSW). Replaces the 0.3.0 BaseCot + IKNP
-// pair. The engine is selectable: IKNP (default; ~2 ms per 55k-COT round) or
-// SoftSpoken<8> (define VOLE_COT_SOFTSPOKEN; ~20 ms per round in this use,
-// its chunked pipeline does not pay off for one small batch per round).
+// pair. This is the only OT extension in the repo (COPE uses CSW base OTs
+// directly). Engine: SoftSpoken<VOLE_COT_SOFTSPOKEN_K> (default k = 4), or
+// IKNP with -DVOLE_COT_IKNP. Measured per 55k-COT round on one AWS box
+// (localhost, malicious): IKNP 1.33 ms / 0.88 MB, SoftSpoken<2> 0.80 ms /
+// 0.44 MB, SoftSpoken<4> 0.66 ms / 0.22 MB, SoftSpoken<8> 1.52 ms / 0.11 MB.
+// The step is ~1% of an fp61 extend round's time and ~11% of its traffic
+// (2.0 MB per round, mostly the GGM tree messages); k = 4 wins on both
+// compute and traffic.
 //
 // Conventions kept from 0.3.0 (the F_2 instantiation relies on them):
 //   * ot_delta has LSB 1 (main's OTExtension pins it);
@@ -21,10 +26,13 @@
 
 template<typename IO>
 class ProgBaseCot { public:
-#ifdef VOLE_COT_SOFTSPOKEN
-  using Engine = emp::SoftSpoken<8>;
-#else
+#ifdef VOLE_COT_IKNP
   using Engine = emp::IKNP;
+#else
+#ifndef VOLE_COT_SOFTSPOKEN_K
+#define VOLE_COT_SOFTSPOKEN_K 4
+#endif
+  using Engine = emp::SoftSpoken<VOLE_COT_SOFTSPOKEN_K>;
 #endif
   int party;
   IO *io;
