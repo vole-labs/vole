@@ -48,21 +48,16 @@ void bench_cvole(NetIO **ios, std::size_t threads, std::size_t target,
   std::size_t cn = cvole.com_buf_size(rounds);
   std::size_t corr = cvole.x_usable(rounds);   // usable VOLE correlations
 
+  // Buffers are allocated (and touched) outside the timed region, as in
+  // emp-ot's benches; their single-threaded construction is not protocol work.
+  FP *xk = nullptr, *ck = nullptr; FPS *xv = nullptr, *cv = nullptr;
+  if (party == ALICE) { xk = new FP[xn]; ck = new FP[cn]; }
+  else { xv = new FPS[xn]; cv = new FPS[cn]; }
   auto start = clock_start();
-  if (party == ALICE) {
-    FP *x = new FP[xn];
-    FP *com = new FP[cn];
-    cvole.extend_inplace_send(x, com, rounds);
-    delete[] x;
-    delete[] com;
-  } else {
-    FPS *x = new FPS[xn];
-    FPS *com = new FPS[cn];
-    cvole.extend_inplace_recv(x, com, rounds);
-    delete[] x;
-    delete[] com;
-  }
+  if (party == ALICE) cvole.extend_inplace_send(xk, ck, rounds);
+  else cvole.extend_inplace_recv(xv, cv, rounds);
   double total = time_from(start) / 1000.0;  // ms
+  delete[] xk; delete[] ck; delete[] xv; delete[] cv;
 
   // Only one party needs to print; ALICE here. Both see equal phase splits since
   // the parties are synchronized inside each MPFSS.

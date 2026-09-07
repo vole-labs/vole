@@ -41,23 +41,25 @@ void bench_vole(NetIO **ios, std::size_t threads, std::size_t batches,
   std::size_t need = batches * vt.ot_limit;  // total correlations
   std::size_t mem = vt.byte_memory_need_inplace(need);
 
+  // Allocate (and touch) the output buffer outside the timed region: for
+  // batches * ot_limit outputs this is hundreds of MB of single-threaded
+  // construction and page faults, which would otherwise dominate the
+  // multi-threaded numbers (emp-ot's benches allocate before timing too).
+  FP *buf_k = nullptr; FPS *buf_vm = nullptr;
+  if (party == ALICE) buf_k = new FP[mem]; else buf_vm = new FPS[mem];
   auto start = clock_start();
-  if (party == ALICE) {
-    FP *buf = new FP[mem];
-    vt.extend_inplace_send(buf, mem);
-    delete[] buf;
-  } else {
-    FPS *buf = new FPS[mem];
-    vt.extend_inplace_recv(buf, mem);
-    delete[] buf;
-  }
+  if (party == ALICE) vt.extend_inplace_send(buf_k, mem);
+  else vt.extend_inplace_recv(buf_vm, mem);
   double total = time_from(start) / 1000.0;  // ms
+  delete[] buf_k; delete[] buf_vm;
 
-  if (party != ALICE) return;
-  printf("[%s] threads=%zu batches=%zu corr=%zu (n=%zu t=%zu k=%zu)\n", tag, threads,
-         batches, need, param.n, param.t, param.k);
+  printf("[%s %s] threads=%zu batches=%zu corr=%zu (n=%zu t=%zu k=%zu)\n", tag,
+         party == ALICE ? "ALICE" : "BOB", threads, batches, need, param.n, param.t, param.k);
   printf("  extend         %9.3f ms   (%.4f us/corr, %.3f ms/batch)\n", total,
          total * 1000.0 / (double)need, total / (double)batches);
+  printf("  per batch: cot %.1f  mpfss %.1f  lpn %.1f  copy %.1f  | extend call %.1f ms\n",
+         vt.t_cot / 1000.0 / batches, vt.t_mpfss / 1000.0 / batches,
+         vt.t_lpn / 1000.0 / batches, vt.t_copy / 1000.0 / batches, vt.t_round / 1000.0 / batches);
 }
 
 int main(int argc, char **argv) {

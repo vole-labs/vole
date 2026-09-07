@@ -72,6 +72,10 @@ public:
   PRG prg;
   PRG prog_prg;
 
+  // Passive per-phase timing accumulators (microseconds) over all extend
+  // rounds, for bench/: base COT for the GGM levels, MPFSS, LPN, tail copy.
+  double t_cot = 0, t_mpfss = 0, t_lpn = 0, t_copy = 0, t_round = 0;
+
   VoleTriple(int party, std::size_t threads, IO **ios,
              PrimalLPNParameterFp61 param = fp_default) {
     this->io = ios[0];
@@ -138,25 +142,35 @@ public:
 
   // sender
   void extend_send(FP *buffer) {
+    auto _t = clock_start();
     cot->prog_cot_gen(pre_ot, pre_ot->n);
+    t_cot += time_from(_t); _t = clock_start();
     mpfss->sender_init(Delta);
     mpfss->mpfss_sender(buffer, pre_yz_send, pre_ot);
+    t_mpfss += time_from(_t); _t = clock_start();
     lpn->compute(buffer, pre_yz_send + mpfss->base_pairs());
+    t_lpn += time_from(_t); _t = clock_start();
     std::copy(buffer + ot_limit, buffer + ot_limit + M, pre_yz_send);
+    t_copy += time_from(_t);
   }
 
   // receiver
   void extend_recv(FPS *buffer_mac) {
+    auto _t = clock_start();
     bool *pre_bool_ini = new bool[pre_ot->n];
     prog_prg.random_bool(pre_bool_ini, pre_ot->n);
     cot->prog_cot_gen(pre_ot, pre_bool_ini, pre_ot->n);
     delete[] pre_bool_ini;
+    t_cot += time_from(_t); _t = clock_start();
 
     mpfss->recver_init();
     mpfss->mpfss_recver(buffer_mac, pre_yz_recv, pre_ot);
     mpfss->set_vec_x(buffer_mac, pre_yz_recv);
+    t_mpfss += time_from(_t); _t = clock_start();
     lpn->compute(buffer_mac, pre_yz_recv + mpfss->base_pairs());
+    t_lpn += time_from(_t); _t = clock_start();
     std::copy(buffer_mac + ot_limit, buffer_mac + ot_limit + M, pre_yz_recv);
+    t_copy += time_from(_t);
   }
 
   // store mac and val separately
@@ -273,7 +287,9 @@ public:
     std::size_t round = tp_output_n / ot_limit;
     FP *pt = data_yz;
     for (std::size_t i = 0; i < round; ++i) {
+      auto _r = clock_start();
       extend_send(pt);
+      t_round += time_from(_r);
       pt += ot_limit;
     }
     return tp_output_n;
@@ -289,7 +305,9 @@ public:
     std::size_t round = tp_output_n / ot_limit;
     FPS *pt = data_yz;
     for (std::size_t i = 0; i < round; ++i) {
+      auto _r = clock_start();
       extend_recv(pt);
+      t_round += time_from(_r);
       pt += ot_limit;
     }
     return tp_output_n;
