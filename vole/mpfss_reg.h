@@ -69,13 +69,31 @@ public:
 
   void recver_init() { item_pos_recver.resize(this->item_n); }
 
+  // Point values consumed from the base pairs (0 when the point value is the
+  // constant 1, as in Ferret's SPCOT) and base pairs forming the check mask.
+  static constexpr bool unit_point = vole_traits<FPS>::unit_point_value;
+  static constexpr std::size_t point_pairs_per_tree = unit_point ? 0 : 1;
+  static constexpr std::size_t mask_pairs = vole_traits<FPS>::mask_pairs;
+  // Base pairs a caller must supply: point values (if any) + the mask.
+  std::size_t base_pairs() const { return tree_n * point_pairs_per_tree + mask_pairs; }
+
   void set_vec_x(FPS *out, FPS *in) {
     uint32_t ptr = 0;
     for (std::size_t i = 0; i < tree_n; ++i) {
       uint32_t pt = ptr + item_pos_recver[i];
-      out[pt].setHigh(in[i].getHigh());
+      out[pt].setHigh(unit_point ? FP(1) : in[i].getHigh());
       ptr += leave_n;
     }
+  }
+
+  // Per-tree "gamma" key / mask pair: the base pair's key/MAC for a field
+  // value, or Delta / zero for the constant point value 1 (in characteristic
+  // 2, secret_sum = Delta - sum(leaves) = Delta xor sum(leaves)).
+  FP tree_gamma(const FP *triple_yz_key, std::size_t i) const {
+    return unit_point ? secret_share_x : triple_yz_key[i];
+  }
+  FPS tree_delta2(const FPS *triple_yz_val_mac, std::size_t i) const {
+    return unit_point ? FPS() : triple_yz_val_mac[i];
   }
 
   // sender
@@ -97,7 +115,7 @@ public:
       fut.push_back(pool->enqueue(
           [this, th, start, end, senders, ot, sparse_vector, triple_yz_key]() {
             for (auto i = start; i < end; ++i) {
-              senders[i]->compute(sparse_vector + i * leave_n, secret_share_x, triple_yz_key[i]);
+              senders[i]->compute(sparse_vector + i * leave_n, secret_share_x, tree_gamma(triple_yz_key, i));
               senders[i]->template send<OTPre<IO>>(ot, ios[th], i);
               ios[th]->flush();
             }
@@ -107,7 +125,7 @@ public:
     }
     end = tree_n;
     for (auto i = start; i < end; ++i) {
-      senders[i]->compute(sparse_vector + i * leave_n, secret_share_x, triple_yz_key[i]);
+      senders[i]->compute(sparse_vector + i * leave_n, secret_share_x, tree_gamma(triple_yz_key, i));
       senders[i]->template send<OTPre<IO>>(ot, ios[nth - 1], i);
       ios[nth - 1]->flush();
     }
@@ -161,7 +179,7 @@ public:
       for (auto &f : fut)
         f.get();
       delete[] seed;
-      consistency_batch_check(triple_yz_key[tree_n], tree_n);
+      consistency_batch_check(vole_traits<FPS>::pack_mask_key(triple_yz_key + tree_n * point_pairs_per_tree), tree_n);
     }
 
     for (auto p : senders)
@@ -189,7 +207,7 @@ public:
           [this, th, start, end, recvers, ot, sparse_vector, triple_yz_val_mac]() {
             for (auto i = start; i < end; ++i) {
               recvers[i]->template recv<OTPre<IO>>(ot, ios[th], i);
-              recvers[i]->compute(sparse_vector + i * leave_n, triple_yz_val_mac[i]);
+              recvers[i]->compute(sparse_vector + i * leave_n, tree_delta2(triple_yz_val_mac, i));
               ios[th]->flush();
             }
           }));
@@ -199,7 +217,7 @@ public:
     end = tree_n;
     for (auto i = start; i < end; ++i) {
       recvers[i]->template recv<OTPre<IO>>(ot, ios[nth - 1], i);
-      recvers[i]->compute(sparse_vector + i * leave_n, triple_yz_val_mac[i]);
+      recvers[i]->compute(sparse_vector + i * leave_n, tree_delta2(triple_yz_val_mac, i));
       ios[nth - 1]->flush();
     }
     for (auto &f : fut)
@@ -263,7 +281,8 @@ public:
         f.get();
       delete[] seed;
 
-      consistency_batch_check(triple_yz_val_mac, triple_yz_val_mac[tree_n], tree_n);
+      consistency_batch_check(triple_yz_val_mac,
+          vole_traits<FPS>::pack_mask(triple_yz_val_mac + tree_n * point_pairs_per_tree), tree_n);
     }
 
     for (auto p : recvers)
@@ -316,12 +335,14 @@ public:
     netio->flush();
   }
 
-  // values are in delta2
-  // z is the mask
-  void consistency_batch_check(FPS *delta2, FPS z, std::size_t num) {
+  // values are in delta2 (or the constant 1 for the bit instantiation)
+  // z is the (packed) mask
+  template <typename MaskT>
+  void consistency_batch_check(FPS *delta2, MaskT z, std::size_t num) {
     FP beta_mul_chialpha((uint64_t)0);
     for (std::size_t i = 0; i < num; ++i) {
-      FP tmp = delta2[i].getHigh() * check_chialpha_buf[i];
+      FP beta = unit_point ? FP(1) : delta2[i].getHigh();
+      FP tmp = beta * check_chialpha_buf[i];
       beta_mul_chialpha = beta_mul_chialpha + tmp;
     }
     FP x_star = beta_mul_chialpha.negate();

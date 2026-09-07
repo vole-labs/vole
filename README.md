@@ -14,6 +14,7 @@ receivers, all provably using the same committed input.
 | Header | Class | What it is |
 |---|---|---|
 | `vole_triple.h` | `VoleTriple<IO, FP, FPS>` | plain (primal-LPN) silent VOLE |
+| `vole_f2k.h` | `RVole<IO, FP, FPS>`, `F2kVole<IO>`, `FerretVole<IO>` | Ferret-COT-style interface over `VoleTriple`: buffered random VOLE of any length, chosen-input VOLE with one-message derandomisation. `F2kVole` is the GF(2^128) instance with `block` arguments; `FerretVole` is the **F_2-value** instance (correlated OT, `R = K ⊕ b·Δ`, choice bit in the LSB) with Ferret's `rcot` / `send_cot` / `recv_cot` |
 | `cvole.h` | `CVoleFp<IO, FP, FPS>` | **committed VOLE** (dual-LPN): VOLE on `x = H·A·e_u` plus the LPN commitment `com = H_u·e_u + H_r·e_r` (paper Sec. 4.1; `com_matrix.h`), with the consistency check `Hash(M[com]) == Hash(K[com] + com·Δ)` |
 | `ncvole.h` | `ProgNCVoleFp<IO, FP, FPS>` | multi-client C-VOLE: one committer reuses a single committed input across many verifiers |
 | `mcvole.h` | `MCVoleFp<IO, FP, FPS>` | **n-party pairwise committed VOLE**: a king seeds every party, reproduces and publishes each commitment locally, then every pair runs a committed VOLE|
@@ -28,6 +29,7 @@ The tests support three fields, selected at run time:
 | `fp107` | F_p, p = 2¹⁰⁷−1 (Mersenne) | `FP107, FP107, FP107x2` |
 | `f2k`   | GF(2¹²⁸) (binary extension) | `FP2x128, FP2x128, FP2x128x2` |
 | `z2k`   | ring Z_{2^k}, k=64 (MAC in Z_{2¹²⁸}, Δ in Z_{2⁶⁴}) | `Z2k64, Z2k64, Z2k64x2` |
+| `f2`    | values in F_2, keys/MACs/Δ in GF(2¹²⁸) (Ferret's correlated OT; one block per output, bit in the LSB) | `F2kKey, F2kKey, F2Auth` (`fields/f2.h`) |
 
 Adding a field is a small change: write its header (a single-element type plus
 its packed `value‖MAC` bundle), then include it in a test and add an

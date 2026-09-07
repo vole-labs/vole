@@ -39,6 +39,8 @@ add_test_executable_with_lib(ncvole_fp)
 add_test_executable_with_lib(mcvole_fp)
 add_test_executable_with_lib(com_binding)
 add_test_executable_with_lib(mpfss_chi)
+add_test_executable_with_lib(vole_f2k)
+add_test_executable_with_lib(vole_f2)
 
 # Local (no network) MPFSS check-coefficient test: per-tree chi, agreement.
 add_test(NAME mpfss_chi
@@ -55,6 +57,12 @@ add_test(NAME com_binding
 # (>=64 apart; mcvole's mesh uses ~24 ports) so the cases can run under `ctest -j`.
 add_2party_field_test(vole_fp  fp61 23110)
 add_2party_field_test(vole_fp  z2k  23210)
+add_test(NAME vole_f2
+	COMMAND sh -c "B='${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_vole_f2'; \"$B\" 1 24010 & p1=$!; \"$B\" 2 24010; r2=$?; wait $p1; r1=$?; exit $((r1 | r2))"
+	WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/")
+add_test(NAME vole_f2k
+	COMMAND sh -c "B='${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_vole_f2k'; \"$B\" 1 23910 & p1=$!; \"$B\" 2 23910; r2=$?; wait $p1; r1=$?; exit $((r1 | r2))"
+	WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/")
 add_2party_field_test(cvole_fp fp61 23310)
 add_2party_field_test(cvole_fp z2k  23410)
 add_ncvole_field_test(fp61 23510)

@@ -57,6 +57,21 @@ template<typename T> inline void restrict_delta(T&) {}
 // code is never instantiated for the field types.
 template<typename T> struct field_traits { static constexpr bool is_ring = false; };
 
+// Protocol hooks keyed on the value||MAC bundle type FPS. Defaults describe a
+// full-field value: every MPFSS point consumes one base pair (its value), the
+// consistency-check mask is one base pair, base values are uniform field
+// elements, and base keys need no normalisation. The F_2 bundle (fields/f2.h)
+// specialises all four to obtain Ferret's correlated OT.
+template<typename FPS> struct vole_traits {
+  static constexpr bool unit_point_value = false;   // point value = base pair's value
+  static constexpr std::size_t mask_pairs = 1;      // base pairs forming the check mask
+  using mask_t = FPS;
+  static mask_t pack_mask(const FPS *p) { return p[0]; }
+  template <typename FP> static FP pack_mask_key(const FP *k) { return k[0]; }
+  template <typename FP, typename PRNG> static void rand_base_value(FP &x, PRNG &prg) { x.rand(prg); }
+  template <typename FP> static void normalize_base_keys(FP *, std::size_t) {}
+};
+
 // Fixed key for the GGM leaf-tag PRG used by the ring GGM-tree check. The tag map
 // is a fixed-key AES permutation (injective), giving the right-half-injectivity
 // the check requires (MozZ2karella Def. 3 / Thm. 5).

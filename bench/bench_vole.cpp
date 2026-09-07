@@ -4,7 +4,8 @@
 // (Primal VOLE has a single expansion pipeline, so there is no A/B split.)
 //
 // usage: bench_vole <party> <port> [field] [threads] [batches] [params]
-//        field   in {fp61, fp107, f2k, z2k}   (default fp61)
+//        field   in {fp61, fp107, f2k, z2k, f2}  (default fp61; f2 = Ferret COT,
+//                  values in F_2, always uses fp_ferret_f2)
 //        threads                               (default 1)
 //        batches = #(ot_limit-sized) extends   (default 5)
 //        params  in {wolverine, ferret_b13}    (default wolverine)
@@ -68,8 +69,8 @@ int main(int argc, char **argv) {
   if (pname != "wolverine" && pname != "ferret_b13")
     error("unknown params: use wolverine | ferret_b13");
   const PrimalLPNParameterFp61 &param = (pname == "ferret_b13") ? fp_ferret_b13 : fp_default;
-  if (field != "fp61" && field != "fp107" && field != "f2k" && field != "z2k")
-    error("unknown field: use fp61 | fp107 | f2k | z2k");
+  if (field != "fp61" && field != "fp107" && field != "f2k" && field != "z2k" && field != "f2")
+    error("unknown field: use fp61 | fp107 | f2k | z2k | f2");
   if (threads < 1) threads = 1;
 
   NetIO **ios = new NetIO *[threads];
@@ -84,6 +85,8 @@ int main(int argc, char **argv) {
     bench_vole<FP2x128, FP2x128, FP2x128x2>(ios, threads, batches, "f2k", param);
   else if (field == "z2k")
     bench_vole<Z2k64, Z2k64, Z2k64x2>(ios, threads, batches, "z2k", param);
+  else if (field == "f2")
+    bench_vole<F2kKey, F2kKey, F2Auth>(ios, threads, batches, "f2", fp_ferret_f2);
 
   for (std::size_t i = 0; i < threads; ++i) delete ios[i];
   delete[] ios;

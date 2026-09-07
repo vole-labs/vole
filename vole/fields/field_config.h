@@ -13,5 +13,6 @@
 #include "vole/fields/fp107x2.h"
 #include "vole/fields/fp2x128.h"
 #include "vole/fields/z2k.h"
+#include "vole/fields/f2.h"
 
 #endif // MPC_FIELD_CONFIG_H__

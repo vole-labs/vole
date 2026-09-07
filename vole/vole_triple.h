@@ -39,6 +39,13 @@ const static PrimalLPNParameterFp61 fp_default = PrimalLPNParameterFp61(
 const static PrimalLPNParameterFp61 fp_ferret_b13 = PrimalLPNParameterFp61(
     15564800, 1900, 524288, 13, 870400, 850, 65536, 10, 870400, 850, 65536, 10);
 
+// Ferret's F_2 (correlated-OT) parameter set from emp-ot 0.3.0 (`ferret_b13`):
+// main (n, t, k) = (10485760, 1280, 452000), pre (470016, 918, 32768). Used by
+// the F_2-value instantiation VoleTriple<IO, F2kKey, F2Auth>; the pre stage is
+// repeated as pre0 so the COPE bootstrap only has to produce 128 + k_pre pairs.
+const static PrimalLPNParameterFp61 fp_ferret_f2 = PrimalLPNParameterFp61(
+    10485760, 1280, 452000, 13, 470016, 918, 32768, 9, 470016, 918, 32768, 9);
+
 template <typename IO, typename FP, typename FPS> 
 class VoleTriple {
 public:
@@ -122,7 +129,9 @@ public:
     mpfss->set_malicious();
 
     pre_ot = new OTPre<IO>(io, mpfss->tree_height - 1, mpfss->tree_n);
-    M = param.k + param.t + 1;
+    // Base pairs reserved per round: the MPFSS point values (none for the
+    // constant-1 bit instantiation) + the check mask + the LPN secret.
+    M = mpfss->base_pairs() + param.k;
     ot_limit = param.n - M;
     ot_used = ot_limit;
   }
@@ -132,7 +141,7 @@ public:
     cot->prog_cot_gen(pre_ot, pre_ot->n);
     mpfss->sender_init(Delta);
     mpfss->mpfss_sender(buffer, pre_yz_send, pre_ot);
-    lpn->compute(buffer, pre_yz_send + mpfss->tree_n + 1);
+    lpn->compute(buffer, pre_yz_send + mpfss->base_pairs());
     std::copy(buffer + ot_limit, buffer + ot_limit + M, pre_yz_send);
   }
 
@@ -146,7 +155,7 @@ public:
     mpfss->recver_init();
     mpfss->mpfss_recver(buffer_mac, pre_yz_recv, pre_ot);
     mpfss->set_vec_x(buffer_mac, pre_yz_recv);
-    lpn->compute(buffer_mac, pre_yz_recv + mpfss->tree_n + 1);
+    lpn->compute(buffer_mac, pre_yz_recv + mpfss->base_pairs());
     std::copy(buffer_mac + ot_limit, buffer_mac + ot_limit + M, pre_yz_recv);
   }
 
@@ -167,7 +176,7 @@ public:
     // generate 2*tree_n+k_pre triples and extend
     std::size_t M_pre0 = pre_ot_ini0.n;
     Base_svole<IO, FP> *svole0;
-    std::size_t triple_n0 = 1 + mpfss_pre0.tree_n + param.k_pre0;
+    std::size_t triple_n0 = mpfss_pre0.base_pairs() + param.k_pre0;
     FP *pre_yz0_send = nullptr;
     FPS *pre_yz0_recv = nullptr;
     if (party == ALICE) {
@@ -176,11 +185,12 @@ public:
       FP *key = new FP[triple_n0];
       svole0 = new Base_svole<IO, FP>(party, ios[0], Delta);
       svole0->compute_send64(key, triple_n0);
+      vole_traits<FPS>::normalize_base_keys(key, triple_n0);
 
       pre_yz0_send = new FP[param.n_pre0];
       mpfss_pre0.sender_init(Delta);
       mpfss_pre0.mpfss_sender(pre_yz0_send, key, &pre_ot_ini0);
-      lpn_pre0.compute(pre_yz0_send, key + mpfss_pre0.tree_n + 1);
+      lpn_pre0.compute(pre_yz0_send, key + mpfss_pre0.base_pairs());
       delete[] key;
 
     } else {
@@ -196,7 +206,7 @@ public:
 
       if(FP::PR_num_pack == 1) {
         for(std::size_t i = 0; i < triple_n0+1; ++i)
-          x[i].rand(prog_prg);
+          vole_traits<FPS>::rand_base_value(x[i], prog_prg);
       } else {
         S *buf = new S[triple_n0+1];
         for(std::size_t i = 0; i < triple_n0+1; ++i) {
@@ -212,7 +222,7 @@ public:
       mpfss_pre0.recver_init();
       mpfss_pre0.mpfss_recver(pre_yz0_recv, mac, &pre_ot_ini0);
       mpfss_pre0.set_vec_x(pre_yz0_recv, mac);
-      lpn_pre0.compute(pre_yz0_recv, mac + mpfss_pre0.tree_n + 1);
+      lpn_pre0.compute(pre_yz0_recv, mac + mpfss_pre0.base_pairs());
       delete[] mac;
       delete[] x;
 
@@ -235,7 +245,7 @@ public:
       pre_yz_send = new FP[param.n_pre];
       mpfss_pre.sender_init(Delta);
       mpfss_pre.mpfss_sender(pre_yz_send, pre_yz0_send, &pre_ot_ini);
-      lpn_pre.compute(pre_yz_send, pre_yz0_send + mpfss_pre.tree_n + 1);
+      lpn_pre.compute(pre_yz_send, pre_yz0_send + mpfss_pre.base_pairs());
       delete[] pre_yz0_send;
     } else {
       bool *pre_bool_ini = new bool[pre_ot_ini.n];
@@ -247,7 +257,7 @@ public:
       mpfss_pre.recver_init();
       mpfss_pre.mpfss_recver(pre_yz_recv, pre_yz0_recv, &pre_ot_ini);
       mpfss_pre.set_vec_x(pre_yz_recv, pre_yz0_recv);
-      lpn_pre.compute(pre_yz_recv, pre_yz0_recv + mpfss_pre.tree_n + 1);
+      lpn_pre.compute(pre_yz_recv, pre_yz0_recv + mpfss_pre.base_pairs());
       delete[] pre_yz0_recv;
     }
 
