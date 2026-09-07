@@ -11,6 +11,7 @@ public:
   int party;
   IO *io;
   block *K = nullptr;
+  static constexpr std::size_t kMinBaseOT = 80;  // CSW batch minimum
   FP delta;
   PRG *G0 = nullptr, *G1 = nullptr;
   bool *delta_bool = nullptr;
@@ -35,9 +36,18 @@ public:
     delta_bool = new bool[m];
     delta64_to_bool(delta_bool, delta.val, m);
 
-    K = new block[m];
+    // CSW's extraction argument needs a batch of at least 80 OTs (its header:
+    // "length must be >= 80, ~2 sigma for sigma = 40"); fp61 (61 bits) and
+    // z2k (64) are below that, so pad the batch with random choice bits and
+    // ignore the extra outputs on both sides.
+    std::size_t m_ot = std::max<std::size_t>(m, kMinBaseOT);
+    bool *choice = new bool[m_ot];
+    for (std::size_t i = 0; i < m; ++i) choice[i] = delta_bool[i];
+    if (m_ot > m) { PRG pad; pad.random_bool(choice + m, m_ot - m); }
+    K = new block[m_ot];
     emp::CSW otco(io);  // base OT (malicious-secure); 0.3.0 used OTCO
-    otco.recv(K, delta_bool, m);
+    otco.recv(K, choice, m_ot);
+    delete[] choice;
 
     G0 = new PRG[m];
     for (std::size_t i = 0; i < m; ++i)
@@ -48,17 +58,18 @@ public:
 
   // recver
   void initialize(std::size_t m) {
-    K = new block[2 * m];
+    std::size_t m_ot = std::max<std::size_t>(m, kMinBaseOT);  // see initialize(delta, m)
+    K = new block[2 * m_ot];
     PRG prg;
-    prg.random_block(K, 2 * m);
+    prg.random_block(K, 2 * m_ot);
     emp::CSW otco(io);
-    otco.send(K, K + m, m);
+    otco.send(K, K + m_ot, m_ot);
 
     G0 = new PRG[m];
     G1 = new PRG[m];
     for (std::size_t i = 0; i < m; ++i) {
       G0[i].reseed(K + i);
-      G1[i].reseed(K + m + i);
+      G1[i].reseed(K + m_ot + i);
     }
 
     delete[] K;
