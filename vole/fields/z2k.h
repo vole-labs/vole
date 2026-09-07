@@ -7,9 +7,11 @@
 //   Z2k64    : a single ring element (the key / MAC type, the FP role).
 //   Z2k64x2  : the SPDZ (value || MAC) bundle (the FPS role), two elements.
 //
-// Parameters (SPDZ2k-style): the authenticated value lives in
-// Z_{2^k} with k = 64, the MAC is computed in Z_{2^{k+s}} with k+s = 128, and
-// Delta lives in Z_{2^s} with s = 64. Concretely:
+// Parameters (SPDZ2k-style): the authenticated value is x mod 2^k with k = 64,
+// the MAC is computed in Z_{2^{k+s}} with k+s = 128, and Delta lives in Z_{2^s}
+// with s = 64. The value slot stores a full 128-bit lift of x; its high 64 bits
+// are NOT authenticated (Delta has only 64 bits), consumers must use x mod 2^64.
+// Concretely:
 //   * `val` is an unsigned __int128, so ALL arithmetic (+, -, *) is the native
 //     two's-complement operation, i.e. reduction mod 2^128 is the hardware
 //     overflow -- there is no explicit modular reduction (unlike the Mersenne

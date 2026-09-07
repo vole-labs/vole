@@ -74,10 +74,30 @@ template<typename T> inline void restrict_delta(T&) {}
 // ring path instead runs (A) a GGM-tree tag check over GF(2^128) and (B) a
 // linear-combination check with *binary* coefficients. `field_traits<T>::is_ring`
 // gates these; it is specialized to `true` only for the ring type (see z2k.h).
-// We build for C++11 (no `if constexpr`), so the call sites dispatch on
-// std::integral_constant<bool, field_traits<FP>::is_ring>{} and the ring-only
-// code is never instantiated for the field types.
+// Call sites either dispatch on std::integral_constant<bool, is_ring>{} or use
+// `if constexpr`, so the ring-only code is never instantiated for field types.
 template<typename T> struct field_traits { static constexpr bool is_ring = false; };
+
+// Coefficients of the base-sVOLE universal-hash check (base_svole.h). Over a
+// field: the polynomial hash chi_j = seed^(j+1). Over Z_{2^k} that hash
+// degenerates: an even seed has seed^128 = 0, so every coefficient from j = 127
+// on vanishes and those pairs go unchecked (with probability 1/2 per run). The
+// ring therefore draws independent uniform ring elements from PRG(seed): for
+// the first nonzero error e_j with v trailing zeros the combination is uniform
+// on 2^v Z_{2^k}, so an error in the low k - v bits passes with probability
+// 2^-(k-v) (the SPDZ2k bound; the high s bits are not authenticated).
+template<typename T>
+void check_coeff_gen(T *chi, T seed, int size) {
+  if constexpr (field_traits<T>::is_ring) {
+    static_assert(sizeof(T) >= sizeof(emp::block), "ring seed must fill a block");
+    emp::block b;
+    std::memcpy(&b, &seed, sizeof(b));
+    emp::PRG prg(&b);
+    prg.random_data_unaligned(chi, size * (int)sizeof(T));
+  } else {
+    field_uni_hash_coeff_gen(chi, seed, size);
+  }
+}
 
 // Protocol hooks keyed on the value||MAC bundle type FPS. Defaults describe a
 // full-field value: every MPFSS point consumes one base pair (its value), the

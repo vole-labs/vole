@@ -68,16 +68,47 @@ std::vector<FP> column_of(const ComMatrixFp<FP> &H, std::size_t j) {
   return v;
 }
 
-// Rank checks (fields only). Dispatched on field_traits so the ring type never
-// instantiates FP::inv().
+// Ring Z_{2^k}: the map is injective on a support iff its mod-2 reduction is (a
+// kernel vector with entries 2^(k-1) exists iff the bit columns are dependent),
+// so rank the bit matrix over F_2.
+template <typename FP>
+std::size_t column_rank_mod2(const std::vector<std::vector<FP>> &cols, std::size_t n) {
+  std::size_t words = (n + 63) / 64;
+  std::vector<std::vector<uint64_t>> piv;
+  std::vector<std::size_t> prow;
+  for (auto &c : cols) {
+    std::vector<uint64_t> v(words, 0);
+    for (std::size_t i = 0; i < n; ++i)
+      if (c[i].val & 1) v[i / 64] |= 1ull << (i % 64);
+    for (std::size_t k = 0; k < piv.size(); ++k)
+      if ((v[prow[k] / 64] >> (prow[k] % 64)) & 1)
+        for (std::size_t w = 0; w < words; ++w) v[w] ^= piv[k][w];
+    std::size_t r = n;
+    for (std::size_t i = 0; i < n; ++i)
+      if ((v[i / 64] >> (i % 64)) & 1) { r = i; break; }
+    if (r == n) continue;  // dependent
+    prow.push_back(r);
+    piv.push_back(v);
+  }
+  return piv.size();
+}
+
+template <typename FP>
+std::size_t rank_of(const std::vector<std::vector<FP>> &cols, std::size_t n) {
+  if constexpr (field_traits<FP>::is_ring) return column_rank_mod2(cols, n);
+  else return column_rank(cols, n);
+}
+
+// Rank checks: over the field for field types, over F_2 (mod-2 reduction) for
+// the ring.
 template <typename FP, typename FPS>
 void rank_checks(CVoleFp<NetIO, FP, FPS> &king, const CVoleFpParam &P,
-                 const std::vector<std::size_t> &pos, std::true_type) {
+                 const std::vector<std::size_t> &pos) {
   std::size_t N = P.N(), leave_u = 1ull << P.log_bin, leave_r = 1ull << P.log_bin_com;
   std::size_t s = pos.size();
   std::vector<std::vector<FP>> cols;
   for (std::size_t j = 0; j < s; ++j) cols.push_back(column_of(*king.hcom, pos[j]));
-  std::size_t r1 = column_rank(cols, P.n_com);
+  std::size_t r1 = rank_of(cols, P.n_com);
   printf("  rank on honest support: %zu / %zu\n", r1, s);
   CHECK(r1 == s, "commitment map injective on the honest support");
 
@@ -94,23 +125,17 @@ void rank_checks(CVoleFp<NetIO, FP, FPS> &king, const CVoleFpParam &P,
       p2.push_back(q);
     }
     for (auto q : p2) cols2.push_back(column_of(*king.hcom, q));
-    std::size_t r2 = column_rank(cols2, P.n_com);
+    std::size_t r2 = rank_of(cols2, P.n_com);
     printf("  rank on double support (trial %d): %zu / %zu\n", trial, r2, 2 * s);
     CHECK(r2 == 2 * s, "no second opening on a double support");
   }
 }
 template <typename FP, typename FPS>
-void rank_checks(CVoleFp<NetIO, FP, FPS> &, const CVoleFpParam &,
-                 const std::vector<std::size_t> &, std::false_type) {
-  printf("  (ring type: rank test skipped, no inverses)\n");
-}
-
-template <typename FP, typename FPS>
 void run(const char *tag) {
   printf("[%s]\n", tag);
   CVoleFpParam P = cvole_resolve_param<FP>(cvole_fp_n2to14);
   std::size_t N = P.N(), leave_u = 1ull << P.log_bin, leave_r = 1ull << P.log_bin_com;
-  printf("  n_com (derived for this field) = %zu\n", P.n_com);
+  printf("  n_com (derived for this field) = %zu, log_bin_com = %zu\n", P.n_com, P.log_bin_com);
 
   CVoleFp<NetIO, FP, FPS> king(4, P);
   king.setup_prog(makeBlock(0xC0FFEEULL, 0x1234ULL));
@@ -151,7 +176,7 @@ void run(const char *tag) {
   CHECK(changed == s, "shift-by-one always changes com");
 
   // 3) rank of the commitment map on the honest / double support (fields)
-  rank_checks(king, P, pos, std::integral_constant<bool, !field_traits<FP>::is_ring>{});
+  rank_checks(king, P, pos);
 }
 
 int main(int argc, char **argv) {

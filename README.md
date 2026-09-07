@@ -37,20 +37,27 @@ its packed `value‖MAC` bundle), then include it in a test and add an
 
 **Z_{2^k} (`z2k`).** The committed-VOLE stack is a linear map plus a single
 multiply-by-Δ, so it is defined over any commutative ring — no field inverse is
-needed. `z2k` instantiates the ring Z_{2^k} (SPDZ2k-style): the value
-is in Z_{2⁶⁴}, the MAC is computed in Z_{2¹²⁸} (the extra s=64 bits are the
-authentication-soundness margin), and Δ is confined to Z_{2⁶⁴}. All arithmetic
-is native `unsigned __int128` (reduction mod 2¹²⁸ is hardware overflow); COPE's
-bit-decomposition of Δ becomes the Gilboa shift-and-add product Δ·u = Σ aᵢ·2ⁱ.
-A freshly sampled Δ is clamped to its 64-bit sub-ring by `restrict_delta()`
-(a no-op for the field types). `z2k` is wired into the committed-VOLE tests
-(`cvole_fp`, `ncvole_fp`, `mcvole_fp`); the plain primal-LPN `vole_fp` is
-field-only.
+needed. `z2k` instantiates the ring Z_{2^k} (SPDZ2k-style, k = s = 64): every
+slot is a 128-bit `unsigned __int128` and all arithmetic is mod 2¹²⁸ (hardware
+overflow); Δ is confined to Z_{2⁶⁴} (a freshly sampled Δ is clamped by
+`restrict_delta()`, a no-op for the field types); COPE's bit-decomposition of
+Δ becomes the Gilboa shift-and-add product Δ·u = Σ aᵢ·2ⁱ. `z2k` runs in every
+driver and test (`vole_fp`, `cvole_fp`, `ncvole_fp`, `mcvole_fp`,
+`com_binding`, `mpfss_chi`).
 
-> Soundness note: over a ring the universal-hash consistency checks (base sVOLE
-> check, MPFSS batch check) rely on the s extra bits rather than field
-> statistical soundness (the usual SPDZ2k heuristic). The commitment's binding
-> argument (paper Theorem 1) is a field argument and does not cover the ring.
+> **Value domain.** The value slot holds a full 128-bit residue, but only its
+> low 64 bits are authenticated: with Δ ∈ Z_{2⁶⁴} the MAC relation
+> M = K + x·Δ (mod 2¹²⁸) tolerates changes to the high 64 bits of x with
+> noticeable probability. Consumers must treat `x mod 2⁶⁴` as the value and
+> the high bits as an unauthenticated lift (as in SPDZ2k). Soundness of the
+> checks is 2⁻⁶⁴ for the low 64 bits: the base-sVOLE check uses independent
+> uniform ring coefficients (a polynomial hash degenerates in Z_{2^k}), the
+> MPFSS checks use the MozZ2karella GGM-tag check plus binary coefficients.
+>
+> **Commitment.** The binding argument (paper Theorem 1) is a counting bound;
+> over Z_{2^k} it reduces mod 2, so `n_com` is derived with one bit per row
+> (about 10× the field value: 9536 rows at 2^20) and |e_r| is widened to
+> 128·2⁸ so the dual-LPN hiding ratio n_com/N_com stays below the field's.
 
 ## Build
 
@@ -143,20 +150,21 @@ derived per field.
 | Field | Threads | Target | Correlations | Total | VOLE | Commitment | µs/corr |
 |---|---|---|---|---|---|---|---|
 | fp61  | 1  | 2^20 | 2.10M | 3.63 s  | 2.07 s | 1.53 s | 1.73 |
-| fp61  | 16 | 2^20 | 2.10M | 0.45 s  | 0.25 s | 0.16 s | 0.21 |
+| fp61  | 16 | 2^20 | 2.10M | 0.42 s  | 0.24 s | 0.15 s | 0.20 |
 | f2k   | 1  | 2^20 | 2.10M | 5.74 s  | 3.71 s | 1.98 s | 2.74 |
-| f2k   | 16 | 2^20 | 2.10M | 0.61 s  | 0.34 s | 0.20 s | 0.29 |
+| f2k   | 16 | 2^20 | 2.10M | 0.56 s  | 0.29 s | 0.21 s | 0.27 |
 | fp107 | 1  | 2^20 | 2.10M | 11.09 s | 4.47 s | 6.55 s | 5.29 |
 | fp107 | 16 | 2^20 | 2.10M | 1.03 s  | 0.40 s | 0.57 s | 0.49 |
-| z2k   | 1  | 2^20 | 2.10M | 4.99 s  | 3.57 s | 1.36 s | 2.38 |
-| z2k   | 16 | 2^20 | 2.10M | 0.58 s  | 0.37 s | 0.14 s | 0.27 |
+| z2k   | 1  | 2^20 | 2.10M | 6.13 s  | 3.55 s | 2.52 s | 2.93 |
+| z2k   | 16 | 2^20 | 2.10M | 0.70 s  | 0.37 s | 0.26 s | 0.33 |
 | fp61  | 16 | 2^24 | 33.6M | 6.92 s  | 4.59 s | 1.88 s | 0.21 |
 | f2k   | 16 | 2^24 | 33.6M | 9.56 s  | 6.26 s | 2.45 s | 0.28 |
 
 A target of 2^k needs two extend rounds (each round yields `n − M` usable
 outputs), hence 2.10M correlations for 2^20. The commitment's cost is
 dominated by per-column PRP generation and the `col_weight` multiply-adds, so
-it is nearly independent of `n_com`.
+it is nearly independent of `n_com` for the fields; over `z2k` the dense `H_r`
+block (32768 columns × 9536 rows) is what makes the commitment dearer.
 
 The plain primal VOLE (`bench_vole`, 50M correlations, µs per correlation at
 1 / 4 / 16 threads; buffers allocated outside the timed region):

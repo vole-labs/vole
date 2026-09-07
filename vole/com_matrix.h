@@ -88,9 +88,20 @@ public:
     std::size_t nth = std::min(threads, total);
     std::vector<std::vector<T>> acc(nth, std::vector<T>(n_com));
     std::vector<std::future<void>> fut;
-    std::size_t chunk = (total + nth - 1) / nth;
+    // Partition columns by cost (entries per column), not by count: the dense
+    // H_r columns at the end cost n_com each versus col_weight for H_u, and
+    // with the ring's large n_com they dominate.
+    const double cost_u = (double)width(0), cost_r = (double)n_com;
+    const double total_cost = (double)N * cost_u + (double)N_com * cost_r;
+    auto bound = [&](std::size_t th) -> std::size_t {
+      if (th >= nth) return total;
+      double target = total_cost * (double)th / (double)nth;
+      double cu = (double)N * cost_u;
+      if (target <= cu) return std::min(N, (std::size_t)(target / cost_u));
+      return std::min(total, N + (std::size_t)((target - cu) / cost_r));
+    };
     for (std::size_t th = 0; th < nth; ++th) {
-      std::size_t s = th * chunk, e = std::min(total, s + chunk);
+      std::size_t s = bound(th), e = bound(th + 1);
       auto job = [this, th, s, e, in, &acc]() {
         Ctx ctx(seed_u, seed_r, max_width());
         std::vector<uint32_t> rows(max_width());

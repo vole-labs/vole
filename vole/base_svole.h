@@ -92,7 +92,7 @@ public:
     seed.rand(prg);
     seed.send(io);
     FP *chi = new FP[size];
-    field_uni_hash_coeff_gen(chi, seed, size);
+    check_coeff_gen(chi, seed, size);
 
     FP y = field_inn_prdt_sum_red(share, chi, size);
     y = y + b;
@@ -112,7 +112,7 @@ public:
     FP seed;
     seed.recv(io);
     FP *chi = new FP[size];
-    field_uni_hash_coeff_gen(chi, seed, size);
+    check_coeff_gen(chi, seed, size);
 
     FP xz[2];
     xz[0] = field_inn_prdt_sum_red(share, chi, size);

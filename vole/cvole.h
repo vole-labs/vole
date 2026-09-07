@@ -105,6 +105,12 @@ public:
 //     2^20 : 768 (F_2^128), 832 (FP107), 832 (FP61)
 //     2^28 : 832 (F_2^128), 832 (FP107), 896 (FP61)
 //   hiding  : (n_com / 2048)^128 <= 2^-152 for the H_r * e_r mask.
+//   Ring Z_{2^k}: the binding argument reduces mod 2 (a kernel vector with
+//   entries 2^(k-1) exists iff the mod-2 matrix has one), so it counts 1 bit
+//   per row instead of log|F|, and cvole_resolve_param widens |e_r| to
+//   log_bin_com = 8 (N_com = 32768) so the hiding ratio stays small:
+//     2^14 : 6848,  2^20 : 9536 ((9536/32768)^128 <= 2^-228),
+//     2^28 : 13120 ((13120/32768)^128 <= 2^-169).
 // (The old (160, 100, 3) commitment had n_com < t + t_com and was not binding.)
 const static CVoleFpParam cvole_fp_n2to20 = CVoleFpParam(1ull << 20, 224, 15, 0, 128, 4);
 const static CVoleFpParam cvole_fp_n2to21 = CVoleFpParam(1ull << 21, 224, 16, 0, 128, 4);
@@ -140,13 +146,14 @@ inline CVoleFpParam cvole_fp_param_for(std::size_t n_need) {
 
 // Smallest n_com satisfying the Theorem-1 binding bound for field FP (log|F| =
 // FP::PR_bit_len), statistical parameter lambda, rounded up to a multiple of 64.
-// Over the ring Z_{2^k} this is only a placeholder (the bound is a field
-// argument).
+// Over the ring Z_{2^k} the union bound runs over the mod-2 reduction, so each
+// row contributes one bit (see the parameter comment above).
 template <typename FP>
 inline std::size_t cvole_n_com_for(const CVoleFpParam &p, std::size_t lambda = 40) {
   double bits = 2.0 * p.t * p.log_bin + 2.0 * p.t_com * p.log_bin_com + (double)lambda;
+  double bits_per_row = field_traits<FP>::is_ring ? 1.0 : (double)FP::PR_bit_len;
   std::size_t need = 2 * (p.t + p.t_com) +
-                     (std::size_t)std::ceil(bits / (double)FP::PR_bit_len);
+                     (std::size_t)std::ceil(bits / bits_per_row);
   return ((need + 63) / 64) * 64;
 }
 
@@ -154,7 +161,12 @@ inline std::size_t cvole_n_com_for(const CVoleFpParam &p, std::size_t lambda = 4
 // resolve with the same FP, which the drivers guarantee by sharing the field.
 template <typename FP>
 inline CVoleFpParam cvole_resolve_param(CVoleFpParam p) {
-  if (p.n_com == 0) p.n_com = cvole_n_com_for<FP>(p);
+  if (p.n_com == 0) {
+    // Ring: n_com is ~10x the field value (1 bit per row); widen |e_r| so the
+    // dual-LPN hiding ratio n_com / N_com stays below the field's.
+    if (field_traits<FP>::is_ring && p.log_bin_com < 8) p.log_bin_com = 8;
+    p.n_com = cvole_n_com_for<FP>(p);
+  }
   return p;
 }
 
