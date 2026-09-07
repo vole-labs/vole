@@ -219,8 +219,13 @@ public:
       svole0 = new Base_svole<IO, FP>(party, ios[0]);
 
       if(FP::PR_num_pack == 1) {
-        for(std::size_t i = 0; i < triple_n0+1; ++i)
+        for(std::size_t i = 0; i < triple_n0; ++i)
           vole_traits<FPS>::rand_base_value(x[i], prog_prg);
+        // x[triple_n0] is the base-sVOLE check mask `a` (recver_check64): it
+        // must be a uniform FIELD element even when the base values are bits,
+        // or the sender, who picks chi, would learn sum(chi_i * x_i) up to
+        // one bit, i.e. 128 linear relations on the receiver's base bits.
+        x[triple_n0].rand(prog_prg);
       } else {
         S *buf = new S[triple_n0+1];
         for(std::size_t i = 0; i < triple_n0+1; ++i) {
