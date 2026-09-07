@@ -79,7 +79,8 @@ those on apt or Homebrew systems and then builds.
 
 Binaries are placed in `build/bin/`: `test_vole_fp`, `test_cvole_fp`,
 `test_ncvole_fp`, `test_mcvole_fp`, `test_mvole_fp`, `test_com_binding`, `test_mpfss_chi`,
-`test_vole_f2k`, `test_vole_f2`, `bench_vole`, `bench_cvole`, `bench_mvole`.
+`test_vole_f2k`, `test_vole_f2`, `bench_vole`, `bench_cvole`, `bench_mvole`,
+`bench_mcvole`.
 
 To build against installed emp-tool / emp-ot 1.0 packages instead of the
 submodules, configure with `-DVOLE_USE_SYSTEM_EMP=ON`.
@@ -156,4 +157,6 @@ Protocol-1 consistency check. A fifth argument `cheat` makes verifier 1 seed
 its VOLE towards verifier 2 differently; every verifier must then abort (the
 `mvole_fp_cheat` ctest case expects exit code 1). `bench_mvole <party> <port>
 <field> <threads> <n_party> <rounds>` reports the per-round mesh, fold and
-check times.
+check times; `bench_mcvole` takes the same arguments (last one = log2 target)
+for the committed dual-LPN `MCVoleFp`, so the two n-party paths compare
+directly.

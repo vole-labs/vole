@@ -68,6 +68,31 @@ void run(std::vector<NetIO **> &ios, int id, const char *tag, bool cheat) {
     ios[n_party][0]->send_data(&h, sizeof(block));
     ios[n_party][0]->flush();
     if (!cheat) {
+      // Full pairwise verification (debug, reveals keys): for every peer j,
+      // mac[j][l] == key_j_for_me[l] + u[l] * Delta_j for all l. Peers are
+      // visited in increasing id; the lower id sends first, so the 80 MB
+      // exchanges cannot deadlock.
+      std::vector<FP> kbuf(m);
+      for (int j = 0; j < n_party; ++j) {
+        if (j == id) continue;
+        FP dj;
+        auto send_mine = [&]() {
+          ios[j][0]->send_data(&mv.delta, sizeof(FP));
+          ios[j][0]->send_data(key[j], m * sizeof(FP));
+          ios[j][0]->flush();
+        };
+        auto recv_theirs = [&]() {
+          ios[j][0]->recv_data(&dj, sizeof(FP));
+          ios[j][0]->recv_data(kbuf.data(), m * sizeof(FP));
+        };
+        if (id < j) { send_mine(); recv_theirs(); } else { recv_theirs(); send_mine(); }
+        for (std::size_t l = 0; l < m; ++l)
+          if (!(mac[j][l] == kbuf[l] + u[l] * dj)) {
+            fprintf(stderr, "[%s] party %d round %d: MAC relation with peer %d fails at %zu\n", tag, id, r, j, l);
+            std::exit(1);
+          }
+      }
+      printf("[%s] party %d round %d: all %zu MACs verified against every peer's key and Delta\n", tag, id, r, m);
       // all forward VOLEs of this party must carry the same values
       int j0 = (id == 0) ? 1 : 0;
       for (int j = 0; j < n_party; ++j) {
