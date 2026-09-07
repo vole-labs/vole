@@ -185,7 +185,7 @@ public:
   // c = a * b mod PR
   uint64_t mult_mod(const uint64_t a, const uint64_t b) const {
     uint64_t c = 0;
-    uint64_t e = mul64(a, b, (uint64_t *)&c);
+    uint64_t e = vole_mul64(a, b, (uint64_t *)&c);
     uint64_t res = (e & PR) + ((e >> PR_bit_len) ^ (c << (64 - PR_bit_len)));
     return (res >= PR) ? (res - PR) : res;
   }
@@ -231,8 +231,8 @@ public:
     uint64_t L = _mm_extract_epi64(a, 0);
     block bs[2];
     uint64_t *is = (uint64_t *)(bs);
-    is[1] = mul64(H, b, (uint64_t *)(is + 3));
-    is[0] = mul64(L, b, (uint64_t *)(is + 2));
+    is[1] = vole_mul64(H, b, (uint64_t *)(is + 3));
+    is[0] = vole_mul64(L, b, (uint64_t *)(is + 2));
     block t1 = bs[0] & DoublePR();
     block t2 = _mm_srli_epi64(bs[0], PR_bit_len) ^
                _mm_slli_epi64(bs[1], 64 - PR_bit_len);
