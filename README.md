@@ -160,3 +160,16 @@ its VOLE towards verifier 2 differently; every verifier must then abort (the
 check times; `bench_mcvole` takes the same arguments (last one = log2 target)
 for the committed dual-LPN `MCVoleFp`, so the two n-party paths compare
 directly.
+
+## References
+
+- Chenkai Weng, Kang Yang, Jonathan Katz, and Xiao Wang. **Wolverine: Fast,
+  Scalable, and Communication-Efficient Zero-Knowledge Proofs for Boolean and
+  Arithmetic Circuits.** IEEE Symposium on Security and Privacy (S&P) 2021.
+  IACR ePrint 2020/925. — the primal-LPN silent VOLE (`vole_triple.h`) and
+  its parameters (`fp_default`), the base sVOLE and MPFSS consistency checks.
+- Yunqing Sun, Hanlin Liu, Kang Yang, Yu Yu, Xiao Wang, and Chenkai Weng.
+  **Committed Vector Oblivious Linear Evaluation and Its Applications.** 2025.
+  — the committed VOLE (`cvole.h`, `com_matrix.h`): the dual-LPN expansion,
+  the LPN-based commitment and its binding bound (Theorem 1), the multi-client
+  and n-party variants (`ncvole.h`, `mcvole.h`).
