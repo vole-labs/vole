@@ -8,7 +8,7 @@ endmacro()
 # Self-contained CTest launchers. Each one starts every party itself on a
 # dedicated port block and fails if ANY party exits non-zero. They need no
 # external `./run` wrapper (which is not in the repo), so `ctest` runs them
-# directly. The field is argv[3]: fp61 | fp107 | f2k | z2k.
+# directly. The field is argv[3]: fp61 | fp107 | p192 | f2k | z2k.
 # ---------------------------------------------------------------------------
 
 # 2-party drivers (vole_fp, cvole_fp): party 1 = ALICE, party 2 = BOB.
@@ -50,6 +50,9 @@ add_test_executable_with_lib(com_binding)
 add_test_executable_with_lib(mpfss_chi)
 add_test_executable_with_lib(vole_f2k)
 add_test_executable_with_lib(vole_f2)
+add_test_executable_with_lib(fp192_arith)
+add_test_executable_with_lib(ggm_leaf)
+add_test_executable_with_lib(cope)
 
 # Local (no network) MPFSS check-coefficient test: per-tree chi, agreement.
 add_test(NAME mpfss_chi
@@ -59,6 +62,18 @@ add_test(NAME mpfss_chi
 # Local (no network) commitment checks: hiding sanity, shift-by-one, rank.
 add_test(NAME com_binding
 	COMMAND "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_com_binding"
+	WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/")
+
+# Local (no network) p192 field arithmetic: known answers, reduction edges,
+# identities, FP192x2 lanes.
+add_test(NAME fp192_arith
+	COMMAND "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_fp192_arith"
+	WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/")
+
+# Local (no network) SPFSS leaf conversion over every field, incl. p192's
+# two-block leaves.
+add_test(NAME ggm_leaf
+	COMMAND "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_ggm_leaf"
 	WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/")
 
 # Register every driver over the default field (fp61) and the Z_{2^k} ring (z2k,
@@ -80,6 +95,16 @@ add_mcvole_field_test(fp61 23710)
 add_mcvole_field_test(z2k  23810)
 add_mvole_field_test(mvole_fp_fp61  fp61 24110 "")
 add_mvole_field_test(mvole_fp_f2k   f2k  24210 "")
+# p192 (p = 2^192 - 2^64 - 1, limb-storage field): every driver.
+add_2party_field_test(vole_fp  p192 24410)
+add_2party_field_test(cvole_fp p192 24510)
+add_ncvole_field_test(p192 24610)
+add_mcvole_field_test(p192 24710)
+add_mvole_field_test(mvole_fp_p192 p192 24810 "")
+add_2party_field_test(cope fp107 25010)
+add_2party_field_test(cope p192  25020)
+add_mvole_field_test(mvole_fp_cheat_p192 p192 24910 "cheat")
+set_tests_properties(mvole_fp_cheat_p192 PROPERTIES WILL_FAIL TRUE TIMEOUT 600)
 # A misbehaving verifier must be caught: every verifier exits 1.
 add_mvole_field_test(mvole_fp_cheat fp61 24310 "cheat")
 set_tests_properties(mvole_fp_cheat PROPERTIES WILL_FAIL TRUE TIMEOUT 600)

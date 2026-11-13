@@ -144,14 +144,16 @@ inline CVoleFpParam cvole_fp_param_for(std::size_t n_need) {
   return cvole_fp_n2to28;
 }
 
-// Smallest n_com satisfying the Theorem-1 binding bound for field FP (log|F| =
-// FP::PR_bit_len), statistical parameter lambda, rounded up to a multiple of 64.
+// Smallest n_com satisfying the Theorem-1 binding bound for field FP (bits per
+// row = com_coef_bits<FP>, which is log|F| unless the field's matrix
+// coefficients carry fewer uniform bits, e.g. FP192), statistical parameter
+// lambda, rounded up to a multiple of 64.
 // Over the ring Z_{2^k} the union bound runs over the mod-2 reduction, so each
 // row contributes one bit (see the parameter comment above).
 template <typename FP>
 inline std::size_t cvole_n_com_for(const CVoleFpParam &p, std::size_t lambda = 40) {
   double bits = 2.0 * p.t * p.log_bin + 2.0 * p.t_com * p.log_bin_com + (double)lambda;
-  double bits_per_row = field_traits<FP>::is_ring ? 1.0 : (double)FP::PR_bit_len;
+  double bits_per_row = field_traits<FP>::is_ring ? 1.0 : com_coef_bits<FP>::value;
   std::size_t need = 2 * (p.t + p.t_com) +
                      (std::size_t)std::ceil(bits / bits_per_row);
   return ((need + 63) / 64) * 64;

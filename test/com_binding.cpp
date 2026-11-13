@@ -12,13 +12,17 @@
 //                     independent, so no second opening exists on any such
 //                     support (paper Thm. 1). Fields only (needs inverses).
 //
-// usage: test_com_binding            (runs fp61, fp107, f2k, z2k)
+//  4) binding bound : n_com uses com_coef_bits<FP> bits per row (p192: 96).
+//
+// usage: test_com_binding            (runs fp61, fp107, p192, f2k, z2k)
 #include "emp-tool/emp-tool.h"
 #include "vole/cvole.h"
 #include "vole/fields/fp61.h"
 #include "vole/fields/fp61x2.h"
 #include "vole/fields/fp107.h"
 #include "vole/fields/fp107x2.h"
+#include "vole/fields/fp192.h"
+#include "vole/fields/fp192x2.h"
 #include "vole/fields/fp2x128.h"
 #include "vole/fields/z2k.h"
 #include <vector>
@@ -179,9 +183,38 @@ void run(const char *tag) {
   rank_checks(king, P, pos);
 }
 
+// 4) binding-bound row count: cvole_n_com_for counts com_coef_bits<FP> uniform
+//    bits per row. The existing fields keep log|F|; p192's coefficients come
+//    from one PRP block (>= 96 bits given the row), so it must count 96, not 192.
+static std::size_t n_com_ref(const CVoleFpParam &p, double bits_per_row) {
+  double bits = 2.0 * p.t * p.log_bin + 2.0 * p.t_com * p.log_bin_com + 40.0;
+  std::size_t need = 2 * (p.t + p.t_com) + (std::size_t)std::ceil(bits / bits_per_row);
+  return ((need + 63) / 64) * 64;
+}
+
+static void bound_checks() {
+  printf("[binding bound]\n");
+  bool fp61 = true, fp107 = true, f2k = true, p192 = true, p192_ge = true;
+  for (const CVoleFpParam &p : {cvole_fp_n2to14, cvole_fp_n2to20, cvole_fp_n2to24, cvole_fp_n2to28}) {
+    if (cvole_n_com_for<FP61>(p) != n_com_ref(p, 61)) fp61 = false;
+    if (cvole_n_com_for<FP107>(p) != n_com_ref(p, 107)) fp107 = false;
+    if (cvole_n_com_for<FP2x128>(p) != n_com_ref(p, 128)) f2k = false;
+    if (cvole_n_com_for<FP192>(p) != n_com_ref(p, 96)) p192 = false;
+    if (cvole_n_com_for<FP192>(p) < cvole_n_com_for<FP107>(p)) p192_ge = false;
+    printf("  t=%zu: n_com fp61 %zu, fp107 %zu, f2k %zu, p192 %zu (192 bits/row would give %zu)\n",
+           p.t, cvole_n_com_for<FP61>(p), cvole_n_com_for<FP107>(p),
+           cvole_n_com_for<FP2x128>(p), cvole_n_com_for<FP192>(p), n_com_ref(p, 192));
+  }
+  CHECK(fp61 && fp107 && f2k, "existing fields count log|F| bits per row (unchanged)");
+  CHECK(p192, "p192 counts 96 bits per row (one PRP block per coefficient)");
+  CHECK(p192_ge, "p192 n_com >= fp107 n_com");
+}
+
 int main(int argc, char **argv) {
+  bound_checks();
   run<FP61, FP61x2>("fp61");
   run<FP107, FP107x2>("fp107");
+  run<FP192, FP192x2>("p192");
   run<FP2x128, FP2x128x2>("f2k");
   run<Z2k64, Z2k64x2>("z2k");
   if (failures) { printf("%d check(s) FAILED\n", failures); return 1; }

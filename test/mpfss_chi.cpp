@@ -5,7 +5,7 @@
 //  * agreement: for a receiver whose leaves equal the sender's, the receiver's
 //    W equals the sender's V for every tree, and chi_alpha matches the
 //    coefficient the sender used at the receiver's point.
-// Runs the field path (fp61, fp107, f2k) and the ring path (z2k).
+// Runs the field path (fp61, fp107, p192, f2k) and the ring path (z2k).
 #include "emp-tool/emp-tool.h"
 #include "vole/spfss_sender.h"
 #include "vole/spfss_recver.h"
@@ -13,6 +13,8 @@
 #include "vole/fields/fp61x2.h"
 #include "vole/fields/fp107.h"
 #include "vole/fields/fp107x2.h"
+#include "vole/fields/fp192.h"
+#include "vole/fields/fp192x2.h"
 #include "vole/fields/fp2x128.h"
 #include "vole/fields/z2k.h"
 
@@ -88,6 +90,7 @@ void run(const char *tag) {
 int main() {
   run<FP61, FP61x2>("fp61");
   run<FP107, FP107x2>("fp107");
+  run<FP192, FP192x2>("p192");
   run<FP2x128, FP2x128x2>("f2k");
   run<Z2k64, Z2k64x2>("z2k");
   if (failures) { printf("%d check(s) FAILED\n", failures); return 1; }

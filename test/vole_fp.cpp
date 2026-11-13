@@ -6,6 +6,8 @@
 #include "vole/fields/fp61x2.h"
 #include "vole/fields/fp107.h"
 #include "vole/fields/fp107x2.h"
+#include "vole/fields/fp192.h"
+#include "vole/fields/fp192x2.h"
 #include "vole/fields/fp2x128.h"
 #include "vole/fields/z2k.h"
 #include "test.h"
@@ -93,11 +95,11 @@ void test_vole_triple(NetIO *ios[threads], int party, const char *tag) {
 }
 
 int main(int argc, char **argv) {
-  // usage: test_vole_fp <party> <port> [field]   field in {fp61, fp107, f2k, z2k}
+  // usage: test_vole_fp <party> <port> [field]   field in {fp61, fp107, p192, f2k, z2k}
   parse_party_and_port(argv, &party, &port);
   std::string field = (argc > 3) ? std::string(argv[3]) : "fp61";
-  if (field != "fp61" && field != "fp107" && field != "f2k" && field != "z2k")
-    error("unknown field: use fp61 | fp107 | f2k | z2k");
+  if (field != "fp61" && field != "fp107" && field != "p192" && field != "f2k" && field != "z2k")
+    error("unknown field: use fp61 | fp107 | p192 | f2k | z2k");
 
   NetIO *ios[threads];
   for (std::size_t i = 0; i < threads; ++i)
@@ -112,6 +114,8 @@ int main(int argc, char **argv) {
     test_vole_triple<FP61, FP61, FP61x2>(ios, party, "fp61");
   else if (field == "fp107")
     test_vole_triple<FP107, FP107, FP107x2>(ios, party, "fp107");
+  else if (field == "p192")
+    test_vole_triple<FP192, FP192, FP192x2>(ios, party, "p192");
   else if (field == "f2k")
     test_vole_triple<FP2x128, FP2x128, FP2x128x2>(ios, party, "f2k");
   else if (field == "z2k")

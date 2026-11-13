@@ -72,7 +72,13 @@ public:
   template <typename T>
   void add_one(T *out, const T *in, int64_t idx1, int64_t *idx2) {
     // Raw adds in groups of T::lazy_adds (compile-time constant), one reduce
-    // per group; the remainder is reduced once at the end.
+    // per group; the remainder is reduced once at the end. Types without
+    // spare bits (FP192) supply a wider lazy accumulator T::Acc instead.
+    if constexpr (requires { typename T::Acc; }) {
+      typename T::Acc a(out[idx1]);
+      for (int j = 0; j < sparcity; ++j) a.add(in[idx2[j]]);
+      out[idx1] = a.get();
+    } else {
     T acc = out[idx1];
     const int L = (int)std::min<unsigned>(T::lazy_adds, 1u << 20);
     int j = 0;
@@ -83,6 +89,7 @@ public:
     for (; j < sparcity; ++j) acc.add_raw(in[idx2[j]]);
     acc.reduce();
     out[idx1] = acc;
+    }
   }
 
   template <typename T>

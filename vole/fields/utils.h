@@ -78,6 +78,20 @@ template<typename T> inline void restrict_delta(T&) {}
 // `if constexpr`, so the ring-only code is never instantiated for field types.
 template<typename T> struct field_traits { static constexpr bool is_ring = false; };
 
+// GGM leaf width (spfss_sender.h / spfss_recver.h). A leaf is one 128-bit block,
+// mapped to a field element by from_block; that is a uniform element only when
+// the field has at most ~128 bits. Fields wider than a block (FP192) set this to
+// true and expand every leaf to two blocks (from_2blocks), otherwise the value
+// at the punctured position, v[a] = w[a] - b*Delta, would be confined to
+// [0, 2^128) and leak Delta. Specialized next to the field type.
+template<typename T> struct wide_leaf { static constexpr bool value = false; };
+
+// Uniform bits per commitment-matrix coefficient, as used by the Theorem-1
+// binding bound (cvole.h: cvole_n_com_for). Defaults to log|F|; a field whose
+// coefficients carry less entropy than its size (FP192: one PRP block) says so
+// next to its type.
+template<typename T> struct com_coef_bits { static constexpr double value = (double)T::PR_bit_len; };
+
 // Coefficients of the base-sVOLE universal-hash check (base_svole.h). Over a
 // field: the polynomial hash chi_j = seed^(j+1). Over Z_{2^k} that hash
 // degenerates: an even seed has seed^128 = 0, so every coefficient from j = 127

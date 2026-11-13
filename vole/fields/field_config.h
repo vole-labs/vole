@@ -11,6 +11,8 @@
 #include "vole/fields/fp61x2.h"
 #include "vole/fields/fp107.h"
 #include "vole/fields/fp107x2.h"
+#include "vole/fields/fp192.h"
+#include "vole/fields/fp192x2.h"
 #include "vole/fields/fp2x128.h"
 #include "vole/fields/z2k.h"
 #include "vole/fields/f2.h"

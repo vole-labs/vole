@@ -45,6 +45,20 @@ public:
     prp->permute_block(tmp, NB);
     const uint32_t *r = (const uint32_t *)(tmp);
     const int64_t base = b * (int64_t)B;
+    if constexpr (requires { typename FP::Acc; }) {
+      // Element types without spare bits (FP192) supply a wider lazy
+      // accumulator: 10 unreduced adds, one reduction per output.
+      for (int o = 0; o < cnt; ++o) {
+        typename FP::Acc acc(K[base + o]);
+#pragma GCC unroll 10
+        for (int j = 0; j < 10; ++j) {
+          int idx = (int)(r[o * 10 + j] & k_mask);
+          if (!POW2) idx = (idx >= k) ? idx - k : idx;
+          acc.add(preK[idx]);
+        }
+        K[base + o] = acc.get();
+      }
+    } else {
     for (int o = 0; o < cnt; ++o) {
       FP acc = K[base + o];
 #pragma GCC unroll 10
@@ -56,6 +70,7 @@ public:
       }
       if (10 % (int)FP::lazy_adds != 0) acc.reduce();
       K[base + o] = acc;
+    }
     }
   }
 

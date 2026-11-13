@@ -70,6 +70,26 @@ public:
     tree[choice_pos] = zero_block;
 
     FP nodes_sum;
+    if constexpr (wide_leaf<FP>::value) {
+      // Two blocks per leaf, matching SpfssSenderFp::compute. The punctured
+      // leaf is unknown here: its slot is skipped (it is overwritten below).
+      static_assert(sizeof(FPS) != sizeof(block), "wide leaves need the scratch tree");
+      TwoKeyPRP prp(zero_block, makeBlock(0, 1));
+      block ext[8];
+      std::size_t i = 0;
+      for (; i + 4 <= leave_n; i += 4) {
+        prp.node_expand_4to8(ext, &tree[i]);
+        for (int k = 0; k < 4; ++k)
+          ggm_tree_mem[i + k].set_low_from_2blocks(ext[2 * k], ext[2 * k + 1]);
+      }
+      for (; i < leave_n; ++i) {
+        prp.node_expand_1to2(ext, tree[i]);
+        ggm_tree_mem[i].set_low_from_2blocks(ext[0], ext[1]);
+      }
+      for (i = 0; i < leave_n; ++i)
+        if (i != choice_pos) nodes_sum.add_raw(ggm_tree_mem[i].getLow());
+      nodes_sum.reduce();
+    } else {
     unsigned pending = 0;
     for (std::size_t i = 0; i < leave_n; ++i) {
       block leaf = tree[i];
@@ -78,6 +98,7 @@ public:
       if (++pending == FP::lazy_adds) { nodes_sum.reduce(); pending = 0; }
     }
     if (pending) nodes_sum.reduce();
+    }
     nodes_sum = share + nodes_sum;
     nodes_sum = nodes_sum.negate();
     ggm_tree_mem[choice_pos] = delta2_mac + nodes_sum;

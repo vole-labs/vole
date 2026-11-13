@@ -5,6 +5,8 @@
 #include "vole/fields/fp61x2.h"
 #include "vole/fields/fp107.h"
 #include "vole/fields/fp107x2.h"
+#include "vole/fields/fp192.h"
+#include "vole/fields/fp192x2.h"
 #include "vole/fields/fp2x128.h"
 #include "vole/fields/z2k.h"
 #include "test.h"
@@ -64,11 +66,11 @@ void run_client(NetIO **ios, const char *tag) {
 int main(int argc, char **argv) {
   // usage: server: test_ncvole_fp 0 <port> [field]
   //        client: test_ncvole_fp <1..n_client> <port> [field]
-  //        field in {fp61, fp107, f2k}
+  //        field in {fp61, fp107, p192, f2k}
   parse_party_and_port(argv, &party, &port);
   std::string field = (argc > 3) ? std::string(argv[3]) : "fp61";
-  if (field != "fp61" && field != "fp107" && field != "f2k" && field != "z2k")
-    error("unknown field: use fp61 | fp107 | f2k | z2k");
+  if (field != "fp61" && field != "fp107" && field != "p192" && field != "f2k" && field != "z2k")
+    error("unknown field: use fp61 | fp107 | p192 | f2k | z2k");
   if (argc > 4) target_size = std::strtoull(argv[4], nullptr, 0);
 
   std::cout << std::endl
@@ -86,6 +88,7 @@ int main(int argc, char **argv) {
 
     if (field == "fp61")       run_server<FP61, FP61, FP61x2>(ios, "fp61");
     else if (field == "fp107") run_server<FP107, FP107, FP107x2>(ios, "fp107");
+    else if (field == "p192") run_server<FP192, FP192, FP192x2>(ios, "p192");
     else if (field == "f2k")   run_server<FP2x128, FP2x128, FP2x128x2>(ios, "f2k");
     else if (field == "z2k")   run_server<Z2k64, Z2k64, Z2k64x2>(ios, "z2k");
 
@@ -100,6 +103,7 @@ int main(int argc, char **argv) {
 
     if (field == "fp61")       run_client<FP61, FP61, FP61x2>(ios, "fp61");
     else if (field == "fp107") run_client<FP107, FP107, FP107x2>(ios, "fp107");
+    else if (field == "p192") run_client<FP192, FP192, FP192x2>(ios, "p192");
     else if (field == "f2k")   run_client<FP2x128, FP2x128, FP2x128x2>(ios, "f2k");
     else if (field == "z2k")   run_client<Z2k64, Z2k64, Z2k64x2>(ios, "z2k");
 

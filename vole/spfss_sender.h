@@ -64,6 +64,29 @@ public:
     ggm_tree_gen(m, m + depth - 1);
 
     secret_sum.setZero();
+    if constexpr (wide_leaf<FP>::value) {
+      // Field wider than a block: each leaf seeds two blocks (one more GGM
+      // level, both children kept) for a uniform 192-bit element. The tree is
+      // a scratch buffer here (sizeof(FP) != sizeof(block)), so the raw leaves
+      // in tree_ stay intact.
+      static_assert(sizeof(FP) != sizeof(block), "wide leaves need the scratch tree");
+      TwoKeyPRP prp(zero_block, makeBlock(0, 1));
+      block ext[8];
+      std::size_t i = 0;
+      for (; i + 4 <= leave_n; i += 4) {
+        prp.node_expand_4to8(ext, &tree[i]);
+        for (int k = 0; k < 4; ++k) {
+          ggm_tree_mem[i + k].from_2blocks(ext[2 * k], ext[2 * k + 1]);
+          secret_sum.add_raw(ggm_tree_mem[i + k]);
+        }
+      }
+      for (; i < leave_n; ++i) {
+        prp.node_expand_1to2(ext, tree[i]);
+        ggm_tree_mem[i].from_2blocks(ext[0], ext[1]);
+        secret_sum.add_raw(ggm_tree_mem[i]);
+      }
+      secret_sum.reduce();
+    } else {
     unsigned pending = 0;
     for (std::size_t i = 0; i < leave_n; ++i) {
       block leaf = tree[i];
@@ -72,6 +95,7 @@ public:
       if (++pending == FP::lazy_adds) { secret_sum.reduce(); pending = 0; }
     }
     if (pending) secret_sum.reduce();
+    }
     secret_sum = secret_sum.negate();
     secret_sum = gamma_mac + secret_sum;
   }
