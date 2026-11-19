@@ -86,6 +86,15 @@ template<typename T> struct field_traits { static constexpr bool is_ring = false
 // [0, 2^128) and leak Delta. Specialized next to the field type.
 template<typename T> struct wide_leaf { static constexpr bool value = false; };
 
+// Primal-LPN matrix entries (lpn.h). Unit entries by default; a field set to
+// true gives every entry its own pseudorandom coefficient of type
+// lpn_coefficient<T>::type (built with from_block). GF(2^128) needs this: with
+// 0/1 entries its LPN instance splits into 128 binary instances, one per bit
+// plane, sharing one noise support. Prime fields have no such planes.
+template<typename T> struct lpn_coefficients { static constexpr bool value = false; };
+template<typename T> struct lpn_coefficient { using type = T; };
+template<typename T> using lpn_coefficient_t = typename lpn_coefficient<T>::type;
+
 // Uniform bits per commitment-matrix coefficient, as used by the Theorem-1
 // binding bound (cvole.h: cvole_n_com_for). Defaults to log|F|; a field whose
 // coefficients carry less entropy than its size (FP192: one PRP block) says so

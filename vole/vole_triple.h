@@ -12,8 +12,9 @@ public:
   std::size_t n_pre, t_pre, k_pre, log_bin_sz_pre;
   std::size_t n_pre0, t_pre0, k_pre0, log_bin_sz_pre0;
 
-  PrimalLPNParameterFp61() {}
-  PrimalLPNParameterFp61(std::size_t n, std::size_t t, std::size_t k, std::size_t log_bin_sz,
+  constexpr PrimalLPNParameterFp61() : n(0), t(0), k(0), log_bin_sz(0), n_pre(0), t_pre(0), k_pre(0),
+      log_bin_sz_pre(0), n_pre0(0), t_pre0(0), k_pre0(0), log_bin_sz_pre0(0) {}
+  constexpr PrimalLPNParameterFp61(std::size_t n, std::size_t t, std::size_t k, std::size_t log_bin_sz,
                          std::size_t n_pre, std::size_t t_pre, std::size_t k_pre,
                          std::size_t log_bin_sz_pre, std::size_t n_pre0, std::size_t t_pre0,
                          std::size_t k_pre0, std::size_t log_bin_sz_pre0)
@@ -22,29 +23,50 @@ public:
         t_pre0(t_pre0), k_pre0(k_pre0), log_bin_sz_pre0(log_bin_sz_pre0) {
 
     if (n != t * (1 << log_bin_sz) || n_pre != t_pre * (1 << log_bin_sz_pre) ||
-        n_pre < k + t + 1)
+        n_pre0 != t_pre0 * (1 << log_bin_sz_pre0) ||
+        n_pre < k + t + 1 || n_pre0 < k_pre + t_pre + 1)
       error("LPN parameter not matched");
+    // LpnFp draws idx = r & (k - 1): uniform only for a power-of-two k.
+    if (!is_pow2(k) || !is_pow2(k_pre) || !is_pow2(k_pre0))
+      error("LPN dimension k must be a power of two");
   }
+  static constexpr bool is_pow2(std::size_t x) { return x != 0 && (x & (x - 1)) == 0; }
   std::size_t buf_sz() const { return n - t - k - 1; }
 };
 
-// Wolverine's F_p parameter set: main (n, t, k) = (10168320, 4965, 158000).
-const static PrimalLPNParameterFp61 fp_default = PrimalLPNParameterFp61(
-    10168320, 4965, 158000, 11, 166400, 2600, 5060, 6, 9600, 600, 1220, 4);
+// Primal-LPN parameter sets: emp-ot's ferret_b9 ... ferret_b13
+// (emp-ot docs/lpn-security.md), primal LPN with regular noise over a 10-local
+// code, every counted attack at >= 141 bits over F_2 and over large fields.
+// (t, logk, tree_depth): k = 2^logk, block size 2^tree_depth, N = t * 2^tree_depth.
+//
+//   set   table   t      logk  depth  N per round   lowest cost (bits)
+//   b9    1 MiB   2,400  16    9       1,228,800    144.2
+//   b10   2 MiB   2,800  17    10      2,867,200    141.3
+//   b11   4 MiB   3,800  18    11      7,782,400    142.8
+//   b12   8 MiB   4,200  19    12     17,203,200    141.2   (default)
+//   b13  16 MiB   4,500  20    13     36,864,000    141.4
+//
+// Every set bootstraps through two ferret_b9 stages (pre0 from the COPE base
+// sVOLE, then pre), which cover any set's t + k + 1 base pairs
+// (<= 1,053,077 <= ferret_b9's N), as emp-ot's F_p sVOLE runs a ferret_b9
+// pre-stage. Each stage and each round reads its own public matrix (lpn.h).
+constexpr PrimalLPNParameterFp61 primal_lpn_set(std::size_t t, int logk, int depth) {
+  return PrimalLPNParameterFp61(t << depth, t, std::size_t{1} << logk, depth,
+                                2400u << 9, 2400, std::size_t{1} << 16, 9,
+                                2400u << 9, 2400, std::size_t{1} << 16, 9);
+}
+const static PrimalLPNParameterFp61 ferret_b9  = primal_lpn_set(2400, 16, 9);
+const static PrimalLPNParameterFp61 ferret_b10 = primal_lpn_set(2800, 17, 10);
+const static PrimalLPNParameterFp61 ferret_b11 = primal_lpn_set(3800, 18, 11);
+const static PrimalLPNParameterFp61 ferret_b12 = primal_lpn_set(4200, 19, 12);
+const static PrimalLPNParameterFp61 ferret_b13 = primal_lpn_set(4500, 20, 13);
+const static PrimalLPNParameterFp61 fp_default = ferret_b12;
 
-// emp-ot main's `ferret_b13` set: main (n, t, k) = (1900 * 2^13, 1900, 2^19),
-// bootstrapped through its `ferret_b10` = (850 * 2^10, 850, 2^16) twice (the
-// first from 1 + 850 + 65536 COPE triples, as emp-ot's F_p bootstrap does).
-// Fewer, deeper trees than fp_default: cheaper MPFSS per output, larger k.
-const static PrimalLPNParameterFp61 fp_ferret_b13 = PrimalLPNParameterFp61(
-    15564800, 1900, 524288, 13, 870400, 850, 65536, 10, 870400, 850, 65536, 10);
-
-// Ferret's F_2 (correlated-OT) parameter set from emp-ot 0.3.0 (`ferret_b13`):
-// main (n, t, k) = (10485760, 1280, 452000), pre (470016, 918, 32768). Used by
-// the F_2-value instantiation VoleTriple<IO, F2kKey, F2Auth>; the pre stage is
-// repeated as pre0 so the COPE bootstrap only has to produce 128 + k_pre pairs.
-const static PrimalLPNParameterFp61 fp_ferret_f2 = PrimalLPNParameterFp61(
-    10485760, 1280, 452000, 13, 470016, 918, 32768, 9, 470016, 918, 32768, 9);
+// Domains of the per-stage public LPN matrices (lpn.h), shared with
+// PrimalValueLocal (mvole.h), which regenerates a receiver's values.
+inline constexpr char kLpnMain[] = "vole:lpn:main";
+inline constexpr char kLpnPre[]  = "vole:lpn:pre";
+inline constexpr char kLpnPre0[] = "vole:lpn:pre0";
 
 template <typename IO, typename FP, typename FPS> 
 class VoleTriple {
@@ -71,6 +93,13 @@ public:
 
   PRG prg;
   PRG prog_prg;
+
+  // Public LPN-matrix root of this instance (lpn.h derives one matrix per
+  // stage and round from it). The receiver (BOB) owns the LPN secret, so it
+  // picks the root, uniformly unless set_lpn_seed() fixed it, and sends it to
+  // ALICE at the start of setup(); choosing the matrix gives ALICE nothing.
+  block lpn_root = zero_block;
+  bool lpn_root_set = false;
 
   // Passive per-phase timing accumulators (microseconds) over all extend
   // rounds, for bench/: base COT for the GGM levels, MPFSS, LPN, tail copy.
@@ -111,6 +140,26 @@ public:
     prog_prg.reseed(&seed);
   }
 
+  // BOB only, before setup(): use this matrix root instead of a fresh one
+  // (n-party VOLE, where one value vector must be reproducible elsewhere).
+  void set_lpn_seed(block root) {
+    if (party != BOB) error("set_lpn_seed: the receiver (BOB) picks the LPN matrix");
+    lpn_root = root;
+    lpn_root_set = true;
+  }
+
+  // Agree on the matrix root: BOB sends, ALICE receives.
+  void exchange_lpn_root() {
+    if (party == BOB) {
+      if (!lpn_root_set) prg.random_block(&lpn_root, 1);
+      io->send_data(&lpn_root, sizeof(block));
+      io->flush();
+    } else {
+      io->recv_data(&lpn_root, sizeof(block));
+    }
+    lpn_root_set = true;
+  }
+
   template<typename S>
   void setup(FP delta) {
     this->Delta = delta;
@@ -127,7 +176,7 @@ public:
   }
 
   void extend_initialization() {
-    lpn = new LpnFp<10>(param.n, param.k, pool, pool->size());
+    lpn = new LpnFp<10>(param.n, param.k, pool, pool->size(), lpn_root, kLpnMain);
     mpfss = new MpfssRegFp<IO, FP, FPS>(party, threads, param.n, param.t,
                                param.log_bin_sz, pool, ios);
     mpfss->set_malicious();
@@ -176,10 +225,11 @@ public:
   // store mac and val separately
   template<typename S>
   void setup() {
+    exchange_lpn_root();
     extend_initialization();
 
     // pre-processing tools
-    LpnFp<10> lpn_pre0(param.n_pre0, param.k_pre0, pool, pool->size());
+    LpnFp<10> lpn_pre0(param.n_pre0, param.k_pre0, pool, pool->size(), lpn_root, kLpnPre0);
     MpfssRegFp<IO, FP, FPS> mpfss_pre0(party, threads, param.n_pre0, param.t_pre0,
                               param.log_bin_sz_pre0, pool, ios);
     mpfss_pre0.set_malicious();
@@ -249,7 +299,7 @@ public:
     delete svole0;
 
     // pre-processing tools
-    LpnFp<10> lpn_pre(param.n_pre, param.k_pre, pool, pool->size());
+    LpnFp<10> lpn_pre(param.n_pre, param.k_pre, pool, pool->size(), lpn_root, kLpnPre);
     MpfssRegFp<IO, FP, FPS> mpfss_pre(party, threads, param.n_pre, param.t_pre,
                              param.log_bin_sz_pre, pool, ios);
     mpfss_pre.set_malicious();

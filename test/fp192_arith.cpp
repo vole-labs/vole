@@ -104,7 +104,7 @@ int main() {
       FP192 pw(1);
       for (int k = 0; k < n; ++k) pw = pw + pw;
       if ((a << n) != a * pw) shift = false;
-      uint64_t s; prg.random_data(&s, sizeof(s));
+      uint64_t s; prg.random_data_unaligned(&s, sizeof(s));
       if (a * s != a * FP192(s) || a + s != a + FP192(s)) u64 = false;
     }
     CHECK(assoc, "(ab)c = a(bc)");

@@ -5,10 +5,10 @@
 //
 // usage: bench_vole <party> <port> [field] [threads] [batches] [params]
 //        field   in {fp61, fp107, p192, f2k, z2k, f2}  (default fp61; f2 = Ferret COT,
-//                  values in F_2, always uses fp_ferret_f2)
+//                  values in F_2)
 //        threads                               (default 1)
 //        batches = #(ot_limit-sized) extends   (default 5)
-//        params  in {wolverine, ferret_b13}    (default wolverine)
+//        params  in {b9, b10, b11, b12, b13}    LPN set ferret_bN (default b12)
 #include "emp-tool/emp-tool.h"
 #include "vole/vole-fp.h"
 #include "vole/fields/field_config.h"
@@ -68,10 +68,14 @@ int main(int argc, char **argv) {
   std::string field = (argc > 3) ? std::string(argv[3]) : "fp61";
   std::size_t threads = (argc > 4) ? std::strtoull(argv[4], nullptr, 0) : 1;
   std::size_t batches = (argc > 5) ? std::strtoull(argv[5], nullptr, 0) : 5;
-  std::string pname = (argc > 6) ? std::string(argv[6]) : "wolverine";
-  if (pname != "wolverine" && pname != "ferret_b13")
-    error("unknown params: use wolverine | ferret_b13");
-  const PrimalLPNParameterFp61 &param = (pname == "ferret_b13") ? fp_ferret_b13 : fp_default;
+  std::string pname = (argc > 6) ? std::string(argv[6]) : "b12";
+  PrimalLPNParameterFp61 param;
+  if (pname == "b9") param = ferret_b9;
+  else if (pname == "b10") param = ferret_b10;
+  else if (pname == "b11") param = ferret_b11;
+  else if (pname == "b12") param = ferret_b12;
+  else if (pname == "b13") param = ferret_b13;
+  else error("unknown params: use b9 | b10 | b11 | b12 | b13");
   if (field != "fp61" && field != "fp107" && field != "p192" && field != "f2k" && field != "z2k" && field != "f2")
     error("unknown field: use fp61 | fp107 | p192 | f2k | z2k | f2");
   if (threads < 1) threads = 1;
@@ -91,7 +95,7 @@ int main(int argc, char **argv) {
   else if (field == "z2k")
     bench_vole<Z2k64, Z2k64, Z2k64x2>(ios, threads, batches, "z2k", param);
   else if (field == "f2")
-    bench_vole<F2kKey, F2kKey, F2Auth>(ios, threads, batches, "f2", fp_ferret_f2);
+    bench_vole<F2kKey, F2kKey, F2Auth>(ios, threads, batches, "f2", param);
 
   for (std::size_t i = 0; i < threads; ++i) delete ios[i];
   delete[] ios;

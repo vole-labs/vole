@@ -49,7 +49,7 @@
 using namespace emp;
 
 // Regenerates a VoleTriple *receiver's* value vector from its programming
-// seed, with no network: consumes prog_prg in exactly the order
+// seed and its LPN-matrix root, with no network: consumes prog_prg in exactly the order
 // VoleTriple::setup / extend_recv do (choice bits before base values, per
 // stage), places the MPFSS point values, and runs the same LpnFp on the value
 // lane. Used by the king. Any change to VoleTriple's receiver path must be
@@ -73,9 +73,8 @@ public:
       : param(param), pool(pool) {
     M = base_pairs_for(param.t) + param.k;
     ot_limit = param.n - M;
-    lpn = new LpnFp<10>(param.n, param.k, pool, pool->size());
   }
-  ~PrimalValueLocal() { delete lpn; }
+  ~PrimalValueLocal() { if (lpn) delete lpn; }
 
   // Regular sparse vector: tree i gets its point at the position encoded by
   // its log_bin choice bits (SpfssRecverFp::get_index: bit 0 -> 1), value
@@ -92,8 +91,11 @@ public:
     }
   }
 
-  void setup(block seed) {
+  // `root`: the receiver's LPN-matrix root (VoleTriple::set_lpn_seed); the
+  // stages use VoleTriple's domains, so the matrices match.
+  void setup(block seed, block root) {
     prog_prg.reseed(&seed);
+    lpn = new LpnFp<10>(param.n, param.k, pool, pool->size(), root, kLpnMain);
 
     // ---- stage 0: choice bits, then base values (+ the base-sVOLE check mask)
     std::size_t bp0 = base_pairs_for(param.t_pre0);
@@ -108,7 +110,7 @@ public:
     for (auto &e : y0) e.setZero();
     place_points(y0.data(), param.t_pre0, param.log_bin_sz_pre0, bits0, x.data());
     delete[] bits0;
-    LpnFp<10> lpn0(param.n_pre0, param.k_pre0, pool, pool->size());
+    LpnFp<10> lpn0(param.n_pre0, param.k_pre0, pool, pool->size(), root, kLpnPre0);
     lpn0.compute(y0.data(), x.data() + bp0);
 
     // ---- stage pre: choice bits, points from stage-0 outputs
@@ -120,7 +122,7 @@ public:
     for (auto &e : y1) e.setZero();
     place_points(y1.data(), param.t_pre, param.log_bin_sz_pre, bits1, y0.data());
     delete[] bits1;
-    LpnFp<10> lpn1(param.n_pre, param.k_pre, pool, pool->size());
+    LpnFp<10> lpn1(param.n_pre, param.k_pre, pool, pool->size(), root, kLpnPre);
     lpn1.compute(y1.data(), y0.data() + bp1);
     pre_yz.swap(y1);
   }
@@ -151,6 +153,10 @@ public:
   PRG prg;
   block prog_seed;                 // verifier: its seed
   std::vector<block> prog_seeds;   // king: every verifier's seed
+  // LPN-matrix root of each verifier's value vector. The king picks them: it
+  // learns every u^i anyway, so choosing the matrices gives it nothing more.
+  block lpn_root;                  // verifier: its root
+  std::vector<block> lpn_roots;    // king: every verifier's root
 
   std::vector<IO **> ios;
   std::vector<VoleTriple<IO, FP, FPS> *> voleForward;  // receiver role: my u, MAC under peer's Delta
@@ -218,20 +224,24 @@ public:
     if (is_king()) {
       prog_seeds.resize(n_party);
       prg.random_block(prog_seeds.data(), n_party);
+      lpn_roots.resize(n_party);
+      prg.random_block(lpn_roots.data(), n_party);
       for (int i = 0; i < n_party; ++i) {
         ios[i][0]->send_data(&prog_seeds[i], sizeof(block));
+        ios[i][0]->send_data(&lpn_roots[i], sizeof(block));
         ios[i][0]->flush();
       }
       king_pool = new ThreadPool(threads);
       locals.resize(n_party, nullptr);
       for (int i = 0; i < n_party; ++i) {
         locals[i] = new PrimalValueLocal<FP, FPS>(king_pool, param);
-        locals[i]->setup(prog_seeds[i]);
+        locals[i]->setup(prog_seeds[i], lpn_roots[i]);
       }
       ot_limit = locals[0]->ot_limit;
       M = locals[0]->M;
     } else {
       ios[n_party][0]->recv_data(&prog_seed, sizeof(block));
+      ios[n_party][0]->recv_data(&lpn_root, sizeof(block));
       voleForward.assign(n_party, nullptr);
       voleInverse.assign(n_party, nullptr);
       fwd_buf.assign(n_party, nullptr);
@@ -283,6 +293,7 @@ public:
   void make_forward(int j) {
     voleForward[j] = new VoleTriple<IO, FP, FPS>(BOB, threads, ios[j], param);
     voleForward[j]->setup_prog(j == cheat_peer ? cheat_seed : prog_seed);
+    voleForward[j]->set_lpn_seed(lpn_root);
     voleForward[j]->template setup<FP>();
     ios[j][0]->flush();
   }

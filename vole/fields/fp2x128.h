@@ -242,4 +242,12 @@ public:
 
 };
 
+// LPN over GF(2^128) takes a pseudorandom GF(2^128) coefficient per matrix
+// entry (lpn.h), for keys (FP2x128) and value/MAC bundles (FP2x128x2) alike.
+// The F_2-valued instantiation (F2kKey / F2Auth) keeps unit entries: its
+// values are bits.
+template <> struct lpn_coefficients<FP2x128> { static constexpr bool value = true; };
+template <> struct lpn_coefficients<FP2x128x2> { static constexpr bool value = true; };
+template <> struct lpn_coefficient<FP2x128x2> { using type = FP2x128; };
+
 #endif  // EMP_UTILS_FIELD_FP2X128_H__

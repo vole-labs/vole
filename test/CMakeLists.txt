@@ -53,6 +53,13 @@ add_test_executable_with_lib(vole_f2)
 add_test_executable_with_lib(fp192_arith)
 add_test_executable_with_lib(ggm_leaf)
 add_test_executable_with_lib(cope)
+add_test_executable_with_lib(lpn)
+
+# Local (no network) primal-LPN checks: parameter sets, per-root/stage/round
+# matrices, GF(2^128) coefficients, MAC relation.
+add_test(NAME lpn
+	COMMAND "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_lpn"
+	WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/")
 
 # Local (no network) MPFSS check-coefficient test: per-tree chi, agreement.
 add_test(NAME mpfss_chi

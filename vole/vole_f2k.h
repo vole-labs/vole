@@ -182,7 +182,7 @@ public:
   using Base::io;
 
   FerretVole(int party, std::size_t threads, IO **ios,
-             PrimalLPNParameterFp61 param = fp_ferret_f2)
+             PrimalLPNParameterFp61 param = fp_default)
       : Base(party, threads, ios, param) {}
 
   // ALICE: Delta with LSB 1 (random unless given); BOB: no argument.
