@@ -177,6 +177,11 @@ public:
   std::vector<FP> acc_mac, acc_key;
   std::size_t rounds_pending = 0;
 
+  // Instance counter of the coin / check commitments, bound into every
+  // commitment with the committer's id (see coin(), commit()). All verifiers
+  // run coin() and check() in the same order, so their counters agree.
+  uint64_t com_ctr = 0;
+
   // Test hook: seed override for the forward VOLE towards one peer (a
   // misbehaving verifier); -1 = honest.
   int cheat_peer = -1;
@@ -408,7 +413,8 @@ public:
     Z[id_party] = zi;
     std::vector<block> nonce(n), com(n);
     prg.random_block(&nonce[id_party], 1);
-    com[id_party] = commit(nonce[id_party], acc_u, Z.data());
+    const uint64_t ctr = com_ctr++;
+    com[id_party] = commit(id_party, ctr, nonce[id_party], acc_u, Z.data());
     broadcast(com.data());
 
     // 6. everyone agrees on the broadcast transcript (shares + commitments).
@@ -442,7 +448,7 @@ public:
       std::memcpy(&nonce[j], pkt.data(), sizeof(block));
       std::memcpy(&u_all[j], pkt.data() + sizeof(block), sizeof(FP));
       std::memcpy(Z_all[j].data(), pkt.data() + sizeof(block) + sizeof(FP), n * sizeof(FP));
-      block c = commit(nonce[j], u_all[j], Z_all[j].data());
+      block c = commit(j, ctr, nonce[j], u_all[j], Z_all[j].data());
       if (!cmpBlock(&c, &com[j], 1)) fail("consistency check: commitment opening mismatch");
     }
     FP s; s.setZero();
@@ -483,21 +489,43 @@ public:
   }
 
   // n-party coin among the verifiers: commit to a random block, open, XOR.
+  // The commitment binds the committer's id and the instance counter: with a
+  // bare H(r), a rushing verifier could echo an honest verifier's commitment
+  // and opening, and r ^ r = 0 would cancel that verifier's randomness (with
+  // as many corrupted verifiers as honest ones the coin is then fixed, e.g. 0,
+  // so chi = 0 and the fold checks nothing).
   block coin() {
     std::vector<block> r(n_party), c(n_party);
     prg.random_block(&r[id_party], 1);
-    c[id_party] = Hash::hash_for_block(&r[id_party], sizeof(block));
+    const uint64_t ctr = com_ctr++;
+    c[id_party] = coin_commit(id_party, ctr, r[id_party]);
     broadcast(c.data());
     broadcast(r.data());
     block out = zero_block;
     for (int j = 0; j < n_party; ++j) {
       if (j != id_party) {
-        block cj = Hash::hash_for_block(&r[j], sizeof(block));
+        block cj = coin_commit(j, ctr, r[j]);
         if (!cmpBlock(&cj, &c[j], 1)) fail("coin: opening mismatch");
       }
       out = out ^ r[j];
     }
     return out;
+  }
+
+  // Domain tag, committer id and instance counter, prefixed to every
+  // commitment so that one party's commitment never opens as another's.
+  static void com_header(Hash &h, const char *tag, int id, uint64_t ctr) {
+    h.put(tag, std::strlen(tag) + 1);
+    int64_t id64 = id;
+    h.put(&id64, sizeof(id64));
+    h.put(&ctr, sizeof(ctr));
+  }
+
+  static block coin_commit(int id, uint64_t ctr, const block &r) {
+    Hash h;
+    com_header(h, "vole:mvole:coin", id, ctr);
+    h.put_block(&r, 1);
+    return digest_block(h);
   }
 
   // SHA-256 digest truncated to one block (Hash::digest writes 32 bytes).
@@ -509,8 +537,9 @@ public:
     return out;
   }
 
-  block commit(block nonce, const FP &u, const FP *Z) {
+  block commit(int id, uint64_t ctr, block nonce, const FP &u, const FP *Z) {
     Hash h;
+    com_header(h, "vole:mvole:check", id, ctr);
     h.put_block(&nonce, 1);
     h.put(&u, sizeof(FP));
     h.put(Z, n_party * sizeof(FP));
