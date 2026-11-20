@@ -4,6 +4,7 @@
 #include "vole/base_svole.h"
 #include "vole/lpn.h"
 #include "vole/mpfss_reg.h"
+#include "vole/huge_alloc.h"
 #include <algorithm>
 
 class PrimalLPNParameterFp61 {
@@ -121,9 +122,9 @@ public:
 
   ~VoleTriple() {
     if (pre_yz_send != nullptr)
-      delete[] pre_yz_send;
+      vole::huge_free(pre_yz_send);
     if (pre_yz_recv != nullptr)
-      delete[] pre_yz_recv;
+      vole::huge_free(pre_yz_recv);
     if (pre_ot != nullptr)
       delete pre_ot;
     if (lpn != nullptr)
@@ -311,7 +312,7 @@ public:
     if(party == ALICE) {
       cot->prog_cot_gen(&pre_ot_ini, M_pre);
 
-      pre_yz_send = new FP[param.n_pre];
+      pre_yz_send = vole::huge_new<FP>(param.n_pre);  // the LPN table: 2 MiB pages
       mpfss_pre.sender_init(Delta);
       mpfss_pre.mpfss_sender(pre_yz_send, pre_yz0_send, &pre_ot_ini);
       lpn_pre.compute(pre_yz_send, pre_yz0_send + mpfss_pre.base_pairs());
@@ -322,7 +323,7 @@ public:
       cot->prog_cot_gen(&pre_ot_ini, pre_bool_ini, M_pre);
       delete[] pre_bool_ini;
 
-      pre_yz_recv = new FPS[param.n_pre];
+      pre_yz_recv = vole::huge_new<FPS>(param.n_pre);  // the LPN table: 2 MiB pages
       mpfss_pre.recver_init();
       mpfss_pre.mpfss_recver(pre_yz_recv, pre_yz0_recv, &pre_ot_ini);
       mpfss_pre.set_vec_x(pre_yz_recv, pre_yz0_recv);
