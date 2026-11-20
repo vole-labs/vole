@@ -263,25 +263,30 @@ class FP192 {
 
   static std::size_t size() { return sizeof(U192); }
 
-  // Lazy accumulator for sums of many elements (the LPN encoder, lpn.h): a
-  // fourth limb absorbs the carries, one fold at the end.
+  // Lazy accumulator for sums of many elements (the LPN encoder, lpn.h). Each
+  // limb has its own 128-bit running sum, so the adds of one limb do not wait
+  // on the carries of the limb below; get() resolves the carries into the
+  // exact integer sum (four limbs) and folds it once. Up to 2^64 terms.
   struct Acc {
-    uint64_t w[4];
-    explicit Acc(const FP192 &x) : w{x.val.w[0], x.val.w[1], x.val.w[2], 0} {}
+    u128 s[3];
+    explicit Acc(const FP192 &x) : s{x.val.w[0], x.val.w[1], x.val.w[2]} {}
     void add(const FP192 &y) {
-      u128 t = (u128)w[0] + y.val.w[0];
-      w[0] = (uint64_t)t;
-      t = (u128)w[1] + y.val.w[1] + (uint64_t)(t >> 64);
-      w[1] = (uint64_t)t;
-      t = (u128)w[2] + y.val.w[2] + (uint64_t)(t >> 64);
-      w[2] = (uint64_t)t;
-      w[3] += (uint64_t)(t >> 64);
+      s[0] += y.val.w[0];
+      s[1] += y.val.w[1];
+      s[2] += y.val.w[2];
     }
     FP192 get() const {
-      FP192 r;
-      r.val = U192{{w[0], w[1], w[2]}};
-      fold(r.val, w[3]);
-      return r;
+      u128 t = s[0];
+      U192 r;
+      r.w[0] = (uint64_t)t;
+      t = s[1] + (uint64_t)(t >> 64);
+      r.w[1] = (uint64_t)t;
+      t = s[2] + (t >> 64);
+      r.w[2] = (uint64_t)t;
+      FP192 o;
+      o.val = r;
+      fold(o.val, (uint64_t)(t >> 64));
+      return o;
     }
   };
 };
@@ -289,6 +294,8 @@ static_assert(sizeof(FP192) == 24, "FP192 must be 24 bytes (sent/hashed as raw b
 
 // GGM leaves must be expanded to two blocks for this field (see spfss_*.h).
 template <> struct wide_leaf<FP192> { static constexpr bool value = true; };
+// MPFSS check: the coefficient-array form, not Horner (see field_poly_hash).
+template <> struct poly_hash_horner<FP192> { static constexpr bool value = false; };
 // Commitment-matrix coefficients come from FP::from_block on a PRP block whose
 // top 32 bits also pick the row (com_matrix.h): >= 96 uniform bits per row.
 template <> struct com_coef_bits<FP192> { static constexpr double value = 96.0; };

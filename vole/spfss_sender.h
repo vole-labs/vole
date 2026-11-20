@@ -176,13 +176,10 @@ public:
       // polynomial-hash generator d = H(tseed), chi_j = d^(j+1). Both parties
       // hold the same (seed, tree_idx), so they agree.
       block tseed = ring_tree_seed(seed, tree_idx);
-      FP *chi = new FP[leave_n];
       FP digest;
       digest.from_block(tseed);  // tseed = AES_seed(tree_idx) is already pseudorandom; no hash needed
-      field_uni_hash_coeff_gen(chi, digest, leave_n);
-      // V = \sum{chi_i*v_i}
-      V = field_inn_prdt_sum_red(chi, input, leave_n);
-      delete[] chi;
+      // V = \sum{chi_i*v_i}, chi = field_uni_hash_coeff_gen(digest), by Horner's rule
+      V = field_poly_hash(digest, leave_n, [input](std::size_t i) { return input[i]; });
     }
     return V;
   }

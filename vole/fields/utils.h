@@ -24,10 +24,15 @@ inline uint64_t vole_mul64(uint64_t a, uint64_t b, uint64_t *c) {
 }
 #endif
 
-// chi[i] = seed^(i+1). Computed as eight independent chains
-// (chi[i+8] = chi[i] * seed^8) so the multiplications pipeline instead of
-// forming one latency-bound dependency chain (emp-tool's block version does
-// the same with four chains); ~4-5x faster for GF(2^128) gfmul.
+// chi[i] = seed^(i+1) for i < 8, then chi[i] = chi[i-8] * seed^9, i.e.
+//   chi[i] = seed^(i + 1 + floor(i/8)),
+// distinct and increasing exponents up to ~1.125 * size (the multiplier is
+// chi[7] * seed = seed^9, not seed^8; both parties use this function, so this
+// is the coefficient vector of the protocol, and the polynomial-hash bound
+// grows by the factor 1.125 only). Eight independent chains so the
+// multiplications pipeline instead of forming one latency-bound dependency
+// chain (emp-tool's block version does the same with four chains); ~4-5x
+// faster for GF(2^128) gfmul.
 template<typename T>
 void field_uni_hash_coeff_gen(T *chi, T seed, int size) {
   if (size <= 0) return;
@@ -35,7 +40,7 @@ void field_uni_hash_coeff_gen(T *chi, T seed, int size) {
   int lead = size < 8 ? size : 8;
   for (int i = 1; i < lead; ++i) chi[i] = chi[i - 1] * seed;
   if (size <= 8) return;
-  T s8 = chi[7] * seed;  // seed^8
+  T s8 = chi[7] * seed;  // seed^9 (see above)
   int i = 8;
   for (; i + 8 <= size; i += 8) {
     chi[i]     = chi[i - 8] * s8;
@@ -48,6 +53,64 @@ void field_uni_hash_coeff_gen(T *chi, T seed, int size) {
     chi[i + 7] = chi[i - 1] * s8;
   }
   for (; i < size; ++i) chi[i] = chi[i - 8] * s8;
+}
+
+// sum_{j < n} chi[j] * x(j) with chi = field_uni_hash_coeff_gen(seed, n),
+// i.e. chi[j] = seed^(j + 1 + floor(j/8)), by Horner's rule instead (one
+// multiplication per term instead of two, and no coefficient array). With
+// j = 8m + r the exponent is 9m + (r + 1), so chain r collects
+// x(8m + r) * (seed^9)^m and is weighted by seed^(r+1) at the end; eight
+// interleaved chains keep the multiplier busy. Field arithmetic is exact, so
+// the result equals the coefficient-array form bit for bit.
+//
+// Fields whose multiplication is long (FP192: ~80 instructions inlined) set
+// poly_hash_horner<T> to false: eight such chains overflow the out-of-order
+// window, and on Zen 5 the coefficient-array form measured ~5% faster there
+// (the same value either way).
+template<typename T> struct poly_hash_horner { static constexpr bool value = true; };
+
+template<typename T, typename Get>
+T field_poly_hash(T seed, std::size_t n, Get x) {
+  if constexpr (!poly_hash_horner<T>::value) {
+    std::vector<T> chi(n);
+    field_uni_hash_coeff_gen(chi.data(), seed, (int)n);
+    T res;
+    res.setZero();
+    for (std::size_t i = 0; i < n; ++i) res = res + chi[i] * x(i);
+    return res;
+  }
+  T pw[8];  // pw[r] = seed^(r+1)
+  pw[0] = seed;
+  for (int r = 1; r < 8; ++r) pw[r] = pw[r - 1] * seed;
+  const T s9 = pw[7] * seed;
+  T acc[8];
+  for (auto &a : acc) a.setZero();
+  const std::size_t q = n / 8, rem = n % 8;
+  for (std::size_t r = 0; r < rem; ++r) acc[r] = x(8 * q + r);
+  for (std::size_t m = q; m-- > 0;)
+    for (int r = 0; r < 8; ++r) acc[r] = acc[r] * s9 + x(8 * m + r);
+  T res;
+  res.setZero();
+  for (int r = 0; r < 8; ++r) res = res + pw[r] * acc[r];
+  return res;
+}
+
+// chi[e] = seed^(e + 1 + floor(e/8)) (field_uni_hash_coeff_gen) for
+// 0 <= e < 2^bits, in a fixed sequence of operations: the exponent minus one,
+// e + floor(e/8) < 2^(bits+1), is scanned over bits + 1 steps that each
+// square and multiply; its bits only select (by index, not by branch) which
+// product is kept. Used for the MPFSS receiver's coefficient at its secret
+// point.
+template<typename T>
+T field_hash_coeff_fixed(T seed, std::size_t e, int bits) {
+  const std::size_t x = e + (e >> 3);
+  T r = seed, b = seed;
+  for (int i = 0; i <= bits; ++i) {
+    T opt[2] = {r, r * b};
+    r = opt[(x >> i) & 1];
+    b = b * b;
+  }
+  return r;
 }
 
 template<typename T>
