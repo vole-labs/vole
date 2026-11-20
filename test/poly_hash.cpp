@@ -11,6 +11,8 @@
 #include "vole/fields/fp61.h"
 #include "vole/fields/fp107.h"
 #include "vole/fields/fp192.h"
+#include "vole/fields/fp25519.h"
+#include "vole/fields/fpp256.h"
 #include "vole/fields/fp2x128.h"
 #include "vole/fields/f2.h"
 #include <vector>
@@ -82,6 +84,8 @@ int main() {
   run<FP61>("FP61", {FP61((uint64_t)0), FP61((uint64_t)1), FP61((uint64_t)FP61::PR - 1)});
   run<FP107>("FP107", {FP107((uint64_t)0), FP107((uint64_t)1), FP107((uint64_t)0) - FP107((uint64_t)1)});
   run<FP192>("FP192", {FP192((uint64_t)0), FP192((uint64_t)1), FP192(-1)});
+  run<FP25519>("FP25519", {FP25519((uint64_t)0), FP25519((uint64_t)1), FP25519(-1)});
+  run<FPP256>("FPP256", {FPP256((uint64_t)0), FPP256((uint64_t)1), FPP256(-1)});
   run<FP2x128>("FP2x128", {FP2x128((uint64_t)0), FP2x128((uint64_t)1)});
   run<F2kKey>("F2kKey", {F2kKey((uint64_t)0), F2kKey((uint64_t)2)});
   if (failures) { printf("%d check(s) FAILED\n", failures); return 1; }

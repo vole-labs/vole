@@ -81,9 +81,9 @@ public:
   // bits). Otherwise challenges and PRG outputs silently truncate to 64 bits
   // and the COPE consistency check (`b + Delta * a == c`) fails.
   using buf_t = decltype(FP().val);
-  // Fields stored as limbs (FP192's U192) have no integer shift/mask; they take
+  // Fields stored as limbs (U192, U256) have no integer shift/mask; they take
   // the limb_* paths below. Built-in integer storage keeps the original code.
-  static constexpr bool limb_storage = std::is_same_v<buf_t, U192>;
+  static constexpr bool limb_storage = std::is_class_v<buf_t>;
 
   // sender batch
   void extend64(FP *ret, std::size_t size, std::size_t m, std::size_t n_pack) {
@@ -173,7 +173,7 @@ public:
   // at position >=64 is silently zero, breaking the COPE correlation.
   template<typename T>
   void delta64_to_bool(bool *bdata, T in, std::size_t m) {
-    if constexpr (std::is_same_v<T, U192>) {
+    if constexpr (std::is_class_v<T>) {  // limb storage: U192, U256
       for (std::size_t i = 0; i < m; ++i) bdata[i] = in.bit(i);
     } else {
     for (std::size_t i = 0; i < m; ++i) {
@@ -183,18 +183,27 @@ public:
     }
   }
 
-  // Limb-storage COPE (FP192): the same Gilboa bit-decomposition as above for
-  // n_pack = 1, with PRG outputs and the receiver's corrections turned into
-  // field elements by reduction (192 random bits are >= p with probability
-  // 2^-128) instead of shift/mask.
+  // Limb-storage COPE (FP192, FP25519, FPP256): the same Gilboa
+  // bit-decomposition as above for n_pack = 1, with PRG outputs and the
+  // receiver's corrections turned into field elements by reduction instead of
+  // shift/mask. The PRG outputs must be uniform field elements: FP192 reduces
+  // 192 random bits (>= p with probability 2^-128); a field that needs more
+  // (FPP256: 384 bits per element) supplies FP::prg_elements.
+  void prg_field(PRG &g, FP *out, buf_t *buf, std::size_t size) {
+    if constexpr (requires { FP::prg_elements(g, out, size); }) {
+      (void)buf;
+      FP::prg_elements(g, out, size);
+    } else {
+      g.random_data_unaligned(buf, size * sizeof(buf_t));
+      for (std::size_t j = 0; j < size; ++j) out[j] = FP(buf[j]);
+    }
+  }
+
   void limb_extend_send(FP *ret, std::size_t size, std::size_t m, std::size_t n_pack) {
     if (n_pack != 1) error("COPE: limb-storage fields support n_pack = 1 only");
     FP *v = new FP[m * size];
     buf_t *buf = new buf_t[size];
-    for (std::size_t i = 0; i < m; ++i) {
-      G0[i].random_data_unaligned(buf, size * sizeof(buf_t));
-      for (std::size_t j = 0; j < size; ++j) v[i * size + j] = FP(buf[j]);
-    }
+    for (std::size_t i = 0; i < m; ++i) prg_field(G0[i], v + i * size, buf, size);
     for (std::size_t i = 0; i < m; ++i) {
       io->recv_data(buf, size * sizeof(buf_t));
       if (delta_bool[i])
@@ -209,20 +218,20 @@ public:
   void limb_extend_recv(FP *ret, FP *u, std::size_t size, std::size_t m, std::size_t n_pack) {
     if (n_pack != 1) error("COPE: limb-storage fields support n_pack = 1 only");
     FP *w0 = new FP[m * size];
+    FP *w1 = new FP[size];
     buf_t *buf0 = new buf_t[size];
     buf_t *buf1 = new buf_t[size];
     for (std::size_t i = 0; i < m; ++i) {
-      G0[i].random_data_unaligned(buf0, size * sizeof(buf_t));
-      G1[i].random_data_unaligned(buf1, size * sizeof(buf_t));
-      for (std::size_t j = 0; j < size; ++j) {
-        w0[i * size + j] = FP(buf0[j]);
+      prg_field(G0[i], w0 + i * size, buf0, size);
+      prg_field(G1[i], w1, buf1, size);
+      for (std::size_t j = 0; j < size; ++j)
         // correction w0 - (w1 + u), sent to the sender
-        buf1[j] = (w0[i * size + j] - (FP(buf1[j]) + u[j])).value();
-      }
+        buf1[j] = (w0[i * size + j] - (w1[j] + u[j])).value();
       io->send_data(buf1, size * sizeof(buf_t));
     }
     prm2pr64(ret, w0, size, m);
     delete[] w0;
+    delete[] w1;
     delete[] buf0;
     delete[] buf1;
   }

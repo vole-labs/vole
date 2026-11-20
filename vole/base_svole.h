@@ -65,9 +65,19 @@ public:
     delete[] out_cope;
   }
 
-  // recver
+  // recver, values drawn here
   template<typename FPS>
   void compute_recv64(FPS *share, std::size_t size) {
+    if constexpr (std::is_class_v<decltype(FP().val)>) {
+      // Limb-storage fields (p192, p25519, p256): a 64-bit word is not a
+      // uniform element, so draw full elements (rand() is uniform, P-256's
+      // from 384 bits).
+      FP *x = new FP[size + 1];
+      for (std::size_t i = 0; i < size + 1; ++i) x[i].rand(prg);
+      compute_recv64(share, x, size);
+      delete[] x;
+      return;
+    }
     uint64_t *buf = new uint64_t[size+1];
     prg.random_data_unaligned(buf, (size+1) * sizeof(uint64_t));
     FP *x = new FP[size+1];

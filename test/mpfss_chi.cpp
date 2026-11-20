@@ -15,6 +15,8 @@
 #include "vole/fields/fp107x2.h"
 #include "vole/fields/fp192.h"
 #include "vole/fields/fp192x2.h"
+#include "vole/fields/fp25519x2.h"
+#include "vole/fields/fpp256x2.h"
 #include "vole/fields/fp2x128.h"
 #include "vole/fields/z2k.h"
 
@@ -91,6 +93,8 @@ int main() {
   run<FP61, FP61x2>("fp61");
   run<FP107, FP107x2>("fp107");
   run<FP192, FP192x2>("p192");
+  run<FP25519, FP25519x2>("p25519");
+  run<FPP256, FPP256x2>("p256");
   run<FP2x128, FP2x128x2>("f2k");
   run<Z2k64, Z2k64x2>("z2k");
   if (failures) { printf("%d check(s) FAILED\n", failures); return 1; }

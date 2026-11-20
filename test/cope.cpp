@@ -1,8 +1,9 @@
 // Two-party check of COPE (vole/cope.h), the base correlation under the base
 // sVOLE: the sender holds Delta, the receiver inputs u, and the outputs satisfy
 //   recv_out[j] = send_out[j] + Delta * u[j].
-// Runs fp107 (built-in integer storage, the original COPE code) and p192 (limb
-// storage, CopeFp::limb_extend_*), including edge inputs u in {0, 1, p-1} and
+// Runs fp107 (built-in integer storage, the original COPE code) and p192,
+// p25519, p256 (limb storage, CopeFp::limb_extend_*; P-256 draws its PRG
+// elements from 384 bits via FP::prg_elements), including edge inputs u in {0, 1, p-1} and
 // a Delta with both the low and the top bit set (every bit of the
 // decomposition is exercised).
 //
@@ -17,7 +18,7 @@ using namespace emp;
 
 template <typename FP>
 bool bit_of(const FP &x, std::size_t i) {
-  if constexpr (std::is_same_v<decltype(FP::val), U192>) return x.val.bit(i);
+  if constexpr (std::is_class_v<decltype(FP::val)>) return x.val.bit(i);  // U192, U256
   else return (x.val >> i) & 1;
 }
 
@@ -64,7 +65,9 @@ int main(int argc, char **argv) {
   int r;
   if (field == "fp107") r = run<FP107>(io, party, "fp107");
   else if (field == "p192") r = run<FP192>(io, party, "p192");
-  else error("unknown field: use fp107 | p192");
+  else if (field == "p25519") r = run<FP25519>(io, party, "p25519");
+  else if (field == "p256") r = run<FPP256>(io, party, "p256");
+  else error("unknown field: use fp107 | p192 | p25519 | p256");
   delete io;
   return r;
 }

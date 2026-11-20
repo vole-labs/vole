@@ -23,6 +23,8 @@
 #include "vole/fields/fp107x2.h"
 #include "vole/fields/fp192.h"
 #include "vole/fields/fp192x2.h"
+#include "vole/fields/fp25519x2.h"
+#include "vole/fields/fpp256x2.h"
 #include "vole/fields/fp2x128.h"
 #include "vole/fields/z2k.h"
 #include <vector>
@@ -194,13 +196,14 @@ static std::size_t n_com_ref(const CVoleFpParam &p, double bits_per_row) {
 
 static void bound_checks() {
   printf("[binding bound]\n");
-  bool fp61 = true, fp107 = true, f2k = true, p192 = true, p192_ge = true;
+  bool fp61 = true, fp107 = true, f2k = true, p192 = true, p192_ge = true, w256 = true;
   for (const CVoleFpParam &p : {cvole_fp_n2to14, cvole_fp_n2to20, cvole_fp_n2to24, cvole_fp_n2to28}) {
     if (cvole_n_com_for<FP61>(p) != n_com_ref(p, 61)) fp61 = false;
     if (cvole_n_com_for<FP107>(p) != n_com_ref(p, 107)) fp107 = false;
     if (cvole_n_com_for<FP2x128>(p) != n_com_ref(p, 128)) f2k = false;
     if (cvole_n_com_for<FP192>(p) != n_com_ref(p, 96)) p192 = false;
     if (cvole_n_com_for<FP192>(p) < cvole_n_com_for<FP107>(p)) p192_ge = false;
+    if (cvole_n_com_for<FP25519>(p) != n_com_ref(p, 96) || cvole_n_com_for<FPP256>(p) != n_com_ref(p, 96)) w256 = false;
     printf("  t=%zu: n_com fp61 %zu, fp107 %zu, f2k %zu, p192 %zu (192 bits/row would give %zu)\n",
            p.t, cvole_n_com_for<FP61>(p), cvole_n_com_for<FP107>(p),
            cvole_n_com_for<FP2x128>(p), cvole_n_com_for<FP192>(p), n_com_ref(p, 192));
@@ -208,6 +211,7 @@ static void bound_checks() {
   CHECK(fp61 && fp107 && f2k, "existing fields count log|F| bits per row (unchanged)");
   CHECK(p192, "p192 counts 96 bits per row (one PRP block per coefficient)");
   CHECK(p192_ge, "p192 n_com >= fp107 n_com");
+  CHECK(w256, "p25519 and p256 count 96 bits per row (one PRP block per coefficient)");
 }
 
 int main(int argc, char **argv) {
@@ -215,6 +219,8 @@ int main(int argc, char **argv) {
   run<FP61, FP61x2>("fp61");
   run<FP107, FP107x2>("fp107");
   run<FP192, FP192x2>("p192");
+  run<FP25519, FP25519x2>("p25519");
+  run<FPP256, FPP256x2>("p256");
   run<FP2x128, FP2x128x2>("f2k");
   run<Z2k64, Z2k64x2>("z2k");
   if (failures) { printf("%d check(s) FAILED\n", failures); return 1; }

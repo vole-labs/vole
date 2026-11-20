@@ -63,10 +63,10 @@ void field_uni_hash_coeff_gen(T *chi, T seed, int size) {
 // interleaved chains keep the multiplier busy. Field arithmetic is exact, so
 // the result equals the coefficient-array form bit for bit.
 //
-// Fields whose multiplication is long (FP192: ~80 instructions inlined) set
-// poly_hash_horner<T> to false: eight such chains overflow the out-of-order
-// window, and on Zen 5 the coefficient-array form measured ~5% faster there
-// (the same value either way).
+// Fields where the coefficient-array form measured faster set
+// poly_hash_horner<T> to false (FP192: its ~80-instruction multiplication,
+// inlined into eight chains, overflows the out-of-order window, ~5% slower on
+// Zen 5; FP25519 likewise). The value is the same either way.
 template<typename T> struct poly_hash_horner { static constexpr bool value = true; };
 
 template<typename T, typename Get>
@@ -148,6 +148,10 @@ template<typename T> struct field_traits { static constexpr bool is_ring = false
 // at the punctured position, v[a] = w[a] - b*Delta, would be confined to
 // [0, 2^128) and leak Delta. Specialized next to the field type.
 template<typename T> struct wide_leaf { static constexpr bool value = false; };
+// Blocks per wide leaf: 2 (256 bits: FP192, FP25519) unless the field needs
+// more uniform bits per element (FPP256: p is ~2^-32 below 2^256, so it takes
+// 384 bits, three blocks, reduced mod p).
+template<typename T> struct leaf_blocks { static constexpr int value = 2; };
 
 // Primal-LPN matrix entries (lpn.h). Unit entries by default; a field set to
 // true gives every entry its own pseudorandom coefficient of type

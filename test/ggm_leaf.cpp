@@ -5,7 +5,7 @@
 //  * at alpha, w[alpha] - v[alpha] = delta2 - gamma (the sender's gamma_mac and
 //    the receiver's delta2_mac), i.e. the punctured slot is consistent with the
 //    sender's published sum;
-//  * for fields wider than a block (p192) every leaf is a
+//  * for fields wider than a block (p192, p25519, p256) every leaf is a
 //    full-width element: with a single 128-bit block per leaf the top limb would
 //    always be zero and v[alpha] = w[alpha] - beta*Delta would leak Delta.
 // Tree depths 2 and 3 exercise the 1-leaf tail of the 4-leaf batched expansion
@@ -63,8 +63,9 @@ void run(const char *tag) {
       if (w[rcv.choice_pos].getLow() - v[rcv.choice_pos] != delta2.getLow() - gamma)
         alpha = false;
       if constexpr (FP::PR_bit_len > 128) {  // independent of the wide_leaf trait
+        constexpr std::size_t top = sizeof(FP::val) / sizeof(uint64_t) - 1;
         for (std::size_t i = 0; i < leave_n; ++i)
-          if (v[i].val.w[2] == 0) wide = false;  // probability 2^-64 per leaf
+          if (v[i].val.w[top] == 0) wide = false;  // probability <= 2^-32 per leaf (P-256's top limb)
       }
     }
   }
@@ -72,7 +73,7 @@ void run(const char *tag) {
   CHECK(others, "receiver leaves equal the sender's off alpha");
   CHECK(alpha, "w[alpha] - v[alpha] = delta2 - gamma");
   if constexpr (FP::PR_bit_len > 128)
-    CHECK(wide, "every leaf uses the full 192-bit width (two blocks per leaf)");
+    CHECK(wide, "every leaf uses the top limb (two or three blocks per leaf)");
   CHECK(wide_leaf<FP>::value == (FP::PR_bit_len > 128 && !field_traits<FP>::is_ring),
         "wide_leaf set exactly for fields wider than a block");
 }
@@ -81,6 +82,8 @@ int main() {
   run<FP61, FP61x2>("fp61");
   run<FP107, FP107x2>("fp107");
   run<FP192, FP192x2>("p192");
+  run<FP25519, FP25519x2>("p25519");
+  run<FPP256, FPP256x2>("p256");
   run<FP2x128, FP2x128x2>("f2k");
   run<Z2k64, Z2k64x2>("z2k");
   if (failures) { printf("%d check(s) FAILED\n", failures); return 1; }

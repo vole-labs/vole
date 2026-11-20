@@ -51,6 +51,7 @@ add_test_executable_with_lib(mpfss_chi)
 add_test_executable_with_lib(vole_f2k)
 add_test_executable_with_lib(vole_f2)
 add_test_executable_with_lib(fp192_arith)
+add_test_executable_with_lib(fp256_arith)
 add_test_executable_with_lib(ggm_leaf)
 add_test_executable_with_lib(cope)
 add_test_executable_with_lib(lpn)
@@ -82,6 +83,12 @@ add_test(NAME com_binding
 # identities, FP192x2 lanes.
 add_test(NAME fp192_arith
 	COMMAND "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_fp192_arith"
+	WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/")
+
+# Local (no network) 256-bit field arithmetic (2^255-19, P-256): known
+# answers, reductions incl. P-256's 384-bit sampling, identities, accumulators.
+add_test(NAME fp256_arith
+	COMMAND "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_fp256_arith"
 	WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/")
 
 # Local (no network) SPFSS leaf conversion over every field, incl. p192's
@@ -119,6 +126,25 @@ add_2party_field_test(cope fp107 25010)
 add_2party_field_test(cope p192  25020)
 add_mvole_field_test(mvole_fp_cheat_p192 p192 24910 "cheat")
 set_tests_properties(mvole_fp_cheat_p192 PROPERTIES WILL_FAIL TRUE TIMEOUT 600)
+
+# 2^255-19 and NIST P-256 (four-limb fields; P-256 draws 384 bits per uniform
+# element): every driver, COPE, and the inconsistent-verifier n-party case.
+add_2party_field_test(vole_fp  p25519 25110)
+add_2party_field_test(cvole_fp p25519 25210)
+add_ncvole_field_test(p25519 25310)
+add_mcvole_field_test(p25519 25410)
+add_mvole_field_test(mvole_fp_p25519 p25519 25510 "")
+add_mvole_field_test(mvole_fp_cheat_p25519 p25519 25610 "cheat")
+set_tests_properties(mvole_fp_cheat_p25519 PROPERTIES WILL_FAIL TRUE TIMEOUT 600)
+add_2party_field_test(cope p25519 25030)
+add_2party_field_test(vole_fp  p256 25710)
+add_2party_field_test(cvole_fp p256 25810)
+add_ncvole_field_test(p256 25910)
+add_mcvole_field_test(p256 26010)
+add_mvole_field_test(mvole_fp_p256 p256 26110 "")
+add_mvole_field_test(mvole_fp_cheat_p256 p256 26210 "cheat")
+set_tests_properties(mvole_fp_cheat_p256 PROPERTIES WILL_FAIL TRUE TIMEOUT 600)
+add_2party_field_test(cope p256 25040)
 # A misbehaving verifier must be caught: every verifier exits 1.
 add_mvole_field_test(mvole_fp_cheat fp61 24310 "cheat")
 set_tests_properties(mvole_fp_cheat PROPERTIES WILL_FAIL TRUE TIMEOUT 600)

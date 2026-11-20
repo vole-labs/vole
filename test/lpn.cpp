@@ -172,6 +172,8 @@ int main() {
   check_sets();
   check_matrix<FP61>(&pool, "FP61 (unit entries)");
   check_matrix<FP192>(&pool, "FP192 (unit entries, lazy accumulator)");
+  check_matrix<FP25519>(&pool, "FP25519 (unit entries, lazy accumulator)");
+  check_matrix<FPP256>(&pool, "FPP256 (unit entries, lazy accumulator)");
   check_matrix<F2kKey>(&pool, "F2kKey (F_2 values, unit entries)");
   check_matrix<FP2x128>(&pool, "FP2x128 (GF(2^128) coefficients)");
   check_matrix<FP2x128x2>(&pool, "FP2x128x2 (GF(2^128) coefficients, value/MAC lanes)");
@@ -181,6 +183,7 @@ int main() {
   CHECK(!leaves_plane0<F2kKey>(&pool), "F2kKey: unit entries keep F_2 values on plane 0");
   CHECK((mac_relation<FP2x128, FP2x128x2>(&pool)), "GF(2^128): MAC = key + value*Delta after two rounds");
   CHECK((mac_relation<FP61, FP61x2>(&pool)), "FP61: MAC = key + value*Delta after two rounds");
+  CHECK((mac_relation<FPP256, FPP256x2>(&pool)), "P-256: MAC = key + value*Delta after two rounds");
 
   if (failures) { printf("%d check(s) FAILED\n", failures); return 1; }
   printf("all LPN checks passed\n");
