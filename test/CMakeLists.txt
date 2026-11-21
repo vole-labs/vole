@@ -52,6 +52,7 @@ add_test_executable_with_lib(vole_f2k)
 add_test_executable_with_lib(vole_f2)
 add_test_executable_with_lib(fp192_arith)
 add_test_executable_with_lib(fp256_arith)
+add_test_executable_with_lib(mpfss_check)
 add_test_executable_with_lib(ggm_leaf)
 add_test_executable_with_lib(cope)
 add_test_executable_with_lib(lpn)
@@ -148,3 +149,20 @@ add_2party_field_test(cope p256 25040)
 # A misbehaving verifier must be caught: every verifier exits 1.
 add_mvole_field_test(mvole_fp_cheat fp61 24310 "cheat")
 set_tests_properties(mvole_fp_cheat PROPERTIES WILL_FAIL TRUE TIMEOUT 600)
+
+# MPFSS final check (committed equality test): the honest round, and each
+# deviation aborts at the expected party with the expected message.
+macro (add_mpfss_check_test _mode _field _port _who _msg)
+	add_test(NAME mpfss_check_${_mode}_${_field}
+		COMMAND sh "${CMAKE_SOURCE_DIR}/test/run_mpfss_check.sh" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_mpfss_check" ${_port} ${_mode} ${_field} ${_who} "${_msg}"
+		WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/")
+	set_tests_properties(mpfss_check_${_mode}_${_field} PROPERTIES TIMEOUT 300)
+endmacro()
+add_mpfss_check_test(honest   fp61 26310 0 "")
+add_mpfss_check_test(xstar    fp61 26320 1 "MPFSS batch check fails")
+add_mpfss_check_test(noncanon fp61 26330 1 "non-canonical value from the receiver")
+add_mpfss_check_test(va       fp61 26340 1 "MPFSS batch check fails")
+add_mpfss_check_test(badopen  fp61 26350 2 "opening does not match its commitment")
+add_mpfss_check_test(honest   p256 26360 0 "")
+add_mpfss_check_test(xstar    p256 26370 1 "MPFSS batch check fails")
+add_mpfss_check_test(badopen  p256 26380 2 "opening does not match its commitment")

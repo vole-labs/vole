@@ -128,6 +128,17 @@ T field_inn_prdt_sum_red(const T *a, const T *b, int size) {
 // sub-ring, because COPE only decomposes that many low bits of Delta.
 template<typename T> inline void restrict_delta(T&) {}
 
+// Abort unless every element read off the wire is the canonical encoding.
+// The field arithmetic assumes canonical operands; a value >= p that encodes
+// the right residue would otherwise make the receiving party compute
+// something other than the field operation (e.g. a Delta-dependent encoding
+// of Delta * x*).
+template<typename T>
+inline void require_canonical(const T *v, std::size_t n, const char *what) {
+  for (std::size_t i = 0; i < n; ++i)
+    if (!v[i].canonical()) emp::error(what);
+}
+
 // ---------------------------------------------------------------------------
 // Ring (Z_{2^k}) vs. field dispatch.
 //

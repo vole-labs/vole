@@ -392,6 +392,7 @@ public:
     for (int j = 0; j < n; ++j) {
       if (j == id_party) continue;
       ios[j][0]->recv_data(&b_recv[j], sizeof(FP));
+      require_canonical(&b_recv[j], 1, "mvole check: non-canonical zero-sharing share");
     }
 
     // 4. shares of u_hat: u^i + sum_k b^k_i, broadcast, reconstruct.
@@ -399,6 +400,7 @@ public:
     share[id_party] = acc_u + b[id_party];
     for (int j = 0; j < n; ++j) if (j != id_party) share[id_party] = share[id_party] + b_recv[j];
     broadcast(share.data());
+    require_canonical(share.data(), n, "mvole check: non-canonical share of u_hat");
     FP u_hat; u_hat.setZero();
     for (int j = 0; j < n; ++j) u_hat = u_hat + share[j];
 
@@ -448,6 +450,8 @@ public:
       std::memcpy(&nonce[j], pkt.data(), sizeof(block));
       std::memcpy(&u_all[j], pkt.data() + sizeof(block), sizeof(FP));
       std::memcpy(Z_all[j].data(), pkt.data() + sizeof(block) + sizeof(FP), n * sizeof(FP));
+      require_canonical(&u_all[j], 1, "mvole check: non-canonical opened u");
+      require_canonical(Z_all[j].data(), n, "mvole check: non-canonical opened Z");
       block c = commit(j, ctr, nonce[j], u_all[j], Z_all[j].data());
       if (!cmpBlock(&c, &com[j], 1)) fail("consistency check: commitment opening mismatch");
     }

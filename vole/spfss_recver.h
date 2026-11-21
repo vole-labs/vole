@@ -47,7 +47,8 @@ public:
   // j: position of the secret, begins from 0
   template <typename OT> void recv(OT *ot, IO *io2, std::size_t s) {
     ot->recv(m, b, depth - 1, io2, s);
-    share.recv(io2);
+    io2->recv_data(&share, sizeof(FP));
+    require_canonical(&share, 1, "MPFSS: non-canonical tree sum from the sender");
   }
 
   // receive the message and reconstruct the tree

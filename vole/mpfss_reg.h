@@ -7,6 +7,8 @@
 #include "emp-tool/emp-tool.h"
 #include <set>
 #include <algorithm>
+#include <cstring>
+#include <type_traits>
 
 using namespace emp;
 
@@ -331,22 +333,45 @@ public:
     prg2.random_block(seed, threads);
   }
 
+  // Final check, Delta-holder side. vb = sum V_i - (y + Delta * x*) is linear
+  // in Delta, so it is compared with the receiver's va by an equality test in
+  // which this side commits first: commit to vb under a fresh 128-bit salt,
+  // receive va, and open (send the salt) only if va == vb. A receiver that
+  // deviated in x* holds only the hiding commitment, nothing to test
+  // candidate Deltas against offline, and the opening never leaves on a
+  // mismatch. (With a plain hash of vb, a receiver sending x* + e learned
+  // H(va + e * Delta): a 2^61 offline search for FP61's Delta.) The
+  // commitment binds vb before va arrives, so a sender that corrupted trees
+  // cannot adapt to va; the va it then sees belongs to a round that aborts.
   void consistency_batch_check(FP y, std::size_t num) {
     FP x_star;
-    x_star.recv(netio);
+    netio->recv_data(&x_star, sizeof(FP));
+    require_canonical(&x_star, 1, "MPFSS check: non-canonical value from the receiver");
     FP tmp = secret_share_x * x_star;
     tmp = y + tmp;
     FP vb = tmp.negate(); // y_star
 
     for (std::size_t i = 0; i < num; ++i)
       vb = vb + check_VW_buf[i];
-    block h = vb.hash();
-    netio->send_data(&h, sizeof(block));
+    block salt, com[2];
+    prg.random_block(&salt, 1);
+    check_commit(vb, salt, com);
+    if (test_cheat == kCheatBadOpening) salt = salt ^ makeBlock(0, 1);  // test hook
+    netio->send_data(com, sizeof(com));
+    netio->flush();
+    FP va;
+    netio->recv_data(&va, sizeof(FP));
+    require_canonical(&va, 1, "MPFSS check: non-canonical value from the receiver");
+    if (std::memcmp(&va, &vb, sizeof(FP)) != 0)
+      error("MPFSS batch check fails");
+    netio->send_data(&salt, sizeof(block));
     netio->flush();
   }
 
   // values are in delta2 (or the constant 1 for the bit instantiation)
   // z is the (packed) mask
+  // Final check, receiver side (see the Delta-holder side above): send x*,
+  // receive the commitment to vb, reveal va, and check the opening.
   template <typename MaskT>
   void consistency_batch_check(FPS *delta2, MaskT z, std::size_t num) {
     FP beta_mul_chialpha((uint64_t)0);
@@ -357,20 +382,45 @@ public:
     }
     FP x_star = beta_mul_chialpha.negate();
     x_star = z.getHigh() + x_star;
-    x_star.template send<IO>(netio);
+    if (test_cheat == kCheatXStar) x_star = x_star + FP((uint64_t)1);  // test hook
+    if constexpr (std::is_integral_v<decltype(x_star.val)>)               // test hook
+      if (test_cheat == kCheatNonCanonical) x_star.val += (decltype(x_star.val))FP::PR;
+    netio->send_data(&x_star, sizeof(FP));
     netio->flush();
 
     FP va = z.getLow();
     va = va.negate();
     for (std::size_t i = 0; i < num; ++i)
       va = va + check_VW_buf[i];
+    if (test_cheat == kCheatVa) va = va + FP((uint64_t)1);  // test hook
 
-    block h = va.hash();
-    block r;
-    netio->recv_data(&r, sizeof(block));
-    if (!cmpBlock(&r, &h, 1))
-      error("MPFSS batch check fails");
+    // The commitment arrives before va leaves; the sender opens it only if
+    // the values match.
+    block com[2];
+    netio->recv_data(com, sizeof(com));
+    netio->send_data(&va, sizeof(FP));
+    netio->flush();
+    block salt;
+    netio->recv_data(&salt, sizeof(block));
+    block opened[2];
+    check_commit(va, salt, opened);
+    if (!cmpBlock(com, opened, 2))
+      error("MPFSS check: the sender's opening does not match its commitment");
   }
+
+  // Commitment of the final check: RO(kDomCheck, salt, v), two blocks,
+  // hiding while the 128-bit salt is secret.
+  static void check_commit(const FP &v, block salt, block out[2]) {
+    RO(kDomCheck, salt).absorb(&v, sizeof(FP)).squeeze_digest(out);
+  }
+  static constexpr char kDomCheck[] = "vole:mpfss:check";
+
+  // Test hooks (test/mpfss_check.cpp); 0 = honest.
+  int test_cheat = 0;
+  static constexpr int kCheatXStar = 1;         // receiver: x* + 1
+  static constexpr int kCheatNonCanonical = 2;  // receiver: x* + p (integer-stored fields)
+  static constexpr int kCheatVa = 3;            // receiver: va + 1
+  static constexpr int kCheatBadOpening = 4;    // sender: opens with another salt
 
 };
 #endif

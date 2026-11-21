@@ -108,6 +108,7 @@ public:
     y = y + b;
     FP xz[2];
     io->recv_data(xz, 2 * sizeof(FP));
+    require_canonical(xz, 2, "base sVOLE check: non-canonical reply from the receiver");
     xz[1] = xz[1] * Delta;
     y = y + xz[1];
     if (y != xz[0]) {
@@ -120,7 +121,8 @@ public:
   void recver_check64(FP *share, FP *x, FP c, FP a,
                     std::size_t size) {
     FP seed;
-    seed.recv(io);
+    io->recv_data(&seed, sizeof(FP));
+    require_canonical(&seed, 1, "base sVOLE check: non-canonical seed from the sender");
     FP *chi = new FP[size];
     check_coeff_gen(chi, seed, size);
 

@@ -77,6 +77,8 @@ public:
   void operator=(uint64_t rhs) { val = (u128)rhs; }
 
   void setZero() { val = 0; }
+  // Every 128-bit pattern is a ring element.
+  bool canonical() const { return true; }
   void assign_no_mod(const u128 rhs) { val = rhs; }
   u128 value() const { return val; }
 

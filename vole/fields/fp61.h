@@ -41,6 +41,9 @@ public:
 
   void setZero() { this->val = 0ULL; }
 
+  // Whether this encoding is the canonical one (a peer may send any bytes).
+  bool canonical() const { return val < PR; }
+
   void from_block(block rhs) {
     uint64_t x = _mm_extract_epi64(rhs, 0);
     this->val = mod(x);

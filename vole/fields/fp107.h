@@ -59,6 +59,9 @@ class FP107 {
 
     void setZero() { val = 0; }
 
+    // Whether this encoding is the canonical one (a peer may send any bytes).
+    bool canonical() const { return val < PR; }
+
     void assign_no_mod(const u128 rhs) { val = rhs; }
 
     u128 value() const { return val; }

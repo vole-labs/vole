@@ -85,6 +85,15 @@ public:
   // the limb_* paths below. Built-in integer storage keeps the original code.
   static constexpr bool limb_storage = std::is_class_v<buf_t>;
 
+  // Abort unless every received correction is a canonical encoding.
+  void require_canonical_raw(const buf_t *buf, std::size_t size) {
+    for (std::size_t j = 0; j < size; ++j) {
+      FP t;
+      t.val = buf[j];
+      if (!t.canonical()) error("COPE: non-canonical correction from the receiver");
+    }
+  }
+
   // sender batch
   void extend64(FP *ret, std::size_t size, std::size_t m, std::size_t n_pack) {
     if constexpr (limb_storage) {
@@ -107,6 +116,7 @@ public:
     ch[0].assign_no_mod((buf_t)0);
     for (std::size_t i = 0; i < m; ++i) {
       io->recv_data(buf, size * sizeof(buf_t));
+      require_canonical_raw(buf, size);
       for (std::size_t j = 0; j < size; ++j) {
         ch[1].assign_no_mod(buf[j]);
         buf_t tmp = (buf_t)0;
@@ -206,6 +216,7 @@ public:
     for (std::size_t i = 0; i < m; ++i) prg_field(G0[i], v + i * size, buf, size);
     for (std::size_t i = 0; i < m; ++i) {
       io->recv_data(buf, size * sizeof(buf_t));
+      require_canonical_raw(buf, size);
       if (delta_bool[i])
         for (std::size_t j = 0; j < size; ++j)
           v[i * size + j] = v[i * size + j] + FP(buf[j]);

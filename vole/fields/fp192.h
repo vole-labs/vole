@@ -68,6 +68,9 @@ class FP192 {
   void operator=(uint64_t rhs) { val = U192{{rhs, 0, 0}}; }
 
   void setZero() { val = U192{{0, 0, 0}}; }
+
+  // Whether this encoding is the canonical one (a peer may send any bytes).
+  bool canonical() const { return !geq_p(val); }
   void assign_no_mod(const U192 &rhs) { val = rhs; canon(val); }
   void assign_no_mod(uint64_t rhs) { val = U192{{rhs, 0, 0}}; }
 
