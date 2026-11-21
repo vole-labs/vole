@@ -13,7 +13,7 @@ receivers, all provably using the same committed input.
 
 | Header | Class | What it is |
 |---|---|---|
-| `vole_triple.h` | `VoleTriple<IO, FP, FPS>` | plain (primal-LPN) silent VOLE |
+| `vole_triple.h` | `VoleTriple<IO, FP, FPS>` | plain (primal-LPN) silent VOLE; LPN parameters are emp-ot's `ferret_b9`…`ferret_b13` (default `ferret_b12`) |
 | `vole_f2k.h` | `RVole<IO, FP, FPS>`, `F2kVole<IO>`, `FerretVole<IO>` | Ferret-COT-style interface over `VoleTriple`: buffered random VOLE of any length, chosen-input VOLE with one-message derandomisation. `F2kVole` is the GF(2^128) instance with `block` arguments; `FerretVole` is the **F_2-value** instance (correlated OT, `R = K ⊕ b·Δ`, choice bit in the LSB) with Ferret's `rcot` / `send_cot` / `recv_cot` |
 | `cvole.h` | `CVoleFp<IO, FP, FPS>` | **committed VOLE** (dual-LPN): VOLE on `x = H·A·e_u` plus the LPN commitment `com = H_u·e_u + H_r·e_r` (paper Sec. 4.1; `com_matrix.h`), with the consistency check `Hash(M[com]) == Hash(K[com] + com·Δ)` |
 | `ncvole.h` | `ProgNCVoleFp<IO, FP, FPS>` | multi-client C-VOLE: one committer reuses a single committed input across many verifiers |
@@ -22,12 +22,15 @@ receivers, all provably using the same committed input.
 
 ## Fields (`vole/fields/`)
 
-The tests support three fields, selected at run time:
+The tests select the field at run time:
 
 | Name | Structure | Types `<FQ, FP, FPS>` |
 |---|---|---|
 | `fp61`  | F_p, p = 2⁶¹−1 (Mersenne) | `FP61, FP61, FP61x2` |
 | `fp107` | F_p, p = 2¹⁰⁷−1 (Mersenne) | `FP107, FP107, FP107x2` |
+| `p192`  | F_p, p = 2¹⁹²−2⁶⁴−1 (NIST P-192) | `FP192, FP192, FP192x2` |
+| `p25519` | F_p, p = 2²⁵⁵−19 | `FP25519, FP25519, FP25519x2` |
+| `p256`  | F_p, NIST P-256 base field | `FPP256, FPP256, FPP256x2` |
 | `f2k`   | GF(2¹²⁸) (binary extension) | `FP2x128, FP2x128, FP2x128x2` |
 | `z2k`   | ring Z_{2^k}, k=64 (MAC in Z_{2¹²⁸}, Δ in Z_{2⁶⁴}) | `Z2k64, Z2k64, Z2k64x2` |
 | `f2`    | values in F_2, keys/MACs/Δ in GF(2¹²⁸) (Ferret's correlated OT; one block per output, bit in the LSB) | `F2kKey, F2kKey, F2Auth` (`fields/f2.h`) |
@@ -63,9 +66,8 @@ driver and test (`vole_fp`, `cvole_fp`, `ncvole_fp`, `mcvole_fp`,
 ## Build
 
 The EMP toolkit dependency is vendored as git submodules under `thirdparty/`:
-`emp-tool` (upstream main, 1.0 line) and `emp-ot` (the `carlweng/emp-ot`
-fork of the 1.0 line, which adds multithreaded silent sVOLE). Both build in
-tree; no system-wide EMP install is needed. The code is C++20.
+`emp-tool` and `emp-ot` from emp-toolkit (1.0 line, pinned commits). Both
+build in tree; no system-wide EMP install is needed. The code is C++20.
 
 ```sh
 git clone --recursive <repo-url>        # or: git submodule update --init
@@ -96,7 +98,7 @@ vendored in `vole/twokeyprp.h` and `vole/preot.h`.
 ## Running the tests
 
 Each test is a networked program; pick the field with the optional last
-argument (`fp61` | `fp107` | `f2k` | `z2k`; defaults to `fp61`; `z2k` is
+argument (`fp61` | `fp107` | `p192` | `p25519` | `p256` | `f2k` | `z2k`; defaults to `fp61`; `z2k` is
 available for the committed-VOLE tests). Parties connect over localhost.
 
 **Two-party (plain VOLE, committed VOLE):**
@@ -166,8 +168,8 @@ directly.
 - Chenkai Weng, Kang Yang, Jonathan Katz, and Xiao Wang. **Wolverine: Fast,
   Scalable, and Communication-Efficient Zero-Knowledge Proofs for Boolean and
   Arithmetic Circuits.** IEEE Symposium on Security and Privacy (S&P) 2021.
-  IACR ePrint 2020/925. — the primal-LPN silent VOLE (`vole_triple.h`) and
-  its parameters (`fp_default`), the base sVOLE and MPFSS consistency checks.
+  IACR ePrint 2020/925. — the primal-LPN silent VOLE (`vole_triple.h`), the
+  base sVOLE and MPFSS consistency checks.
 - Yunqing Sun, Hanlin Liu, Kang Yang, Yu Yu, Xiao Wang, and Chenkai Weng.
   **Committed Vector Oblivious Linear Evaluation and Its Applications.** 2025.
   — the committed VOLE (`cvole.h`, `com_matrix.h`): the dual-LPN expansion,
