@@ -4,6 +4,7 @@
 #include "vole/fields/fp61x2.h"
 #include "vole/fields/fp107.h"
 #include "vole/fields/fp107x2.h"
+#include "vole/fields/fp128x2.h"
 #include "vole/fields/fp192.h"
 #include "vole/fields/fp192x2.h"
 #include "vole/fields/fp25519x2.h"
@@ -120,8 +121,8 @@ int main(int argc, char **argv) {
   parse_party_and_port(argv, &party, &port);
   std::string field = (argc > 3) ? std::string(argv[3]) : "fp61";
   bool cheat = (argc > 4) && std::string(argv[4]) == "cheat";
-  if (field != "fp61" && field != "fp107" && field != "p192" && field != "p25519" && field != "p256" && field != "f2k" && field != "z2k")
-    error("unknown field: use fp61 | fp107 | p192 | p25519 | p256 | f2k | z2k");
+  if (field != "fp61" && field != "fp107" && field != "p128" && field != "p192" && field != "p25519" && field != "p256" && field != "f2k" && field != "z2k")
+    error("unknown field: use fp61 | fp107 | p128 | p192 | p25519 | p256 | f2k | z2k");
 
   const int P = n_party + 1;
   std::size_t num_io = (threads == 1) ? 2 : threads;
@@ -143,6 +144,7 @@ int main(int argc, char **argv) {
 
   if (field == "fp61")       run<FP61, FP61x2>(ios, party, "fp61", cheat);
   else if (field == "fp107") run<FP107, FP107x2>(ios, party, "fp107", cheat);
+  else if (field == "p128") run<FP128, FP128x2>(ios, party, "p128", cheat);
   else if (field == "p192") run<FP192, FP192x2>(ios, party, "p192", cheat);
   else if (field == "p25519") run<FP25519, FP25519x2>(ios, party, "p25519", cheat);
   else if (field == "p256") run<FPP256, FPP256x2>(ios, party, "p256", cheat);

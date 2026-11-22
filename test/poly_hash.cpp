@@ -10,6 +10,7 @@
 #include "emp-tool/emp-tool.h"
 #include "vole/fields/fp61.h"
 #include "vole/fields/fp107.h"
+#include "vole/fields/fp128.h"
 #include "vole/fields/fp192.h"
 #include "vole/fields/fp25519.h"
 #include "vole/fields/fpp256.h"
@@ -83,6 +84,7 @@ static void run(const char *tag, std::vector<FP> edge_seeds) {
 int main() {
   run<FP61>("FP61", {FP61((uint64_t)0), FP61((uint64_t)1), FP61((uint64_t)FP61::PR - 1)});
   run<FP107>("FP107", {FP107((uint64_t)0), FP107((uint64_t)1), FP107((uint64_t)0) - FP107((uint64_t)1)});
+  run<FP128>("FP128", {FP128((uint64_t)0), FP128((uint64_t)1), FP128(-1)});
   run<FP192>("FP192", {FP192((uint64_t)0), FP192((uint64_t)1), FP192(-1)});
   run<FP25519>("FP25519", {FP25519((uint64_t)0), FP25519((uint64_t)1), FP25519(-1)});
   run<FPP256>("FPP256", {FPP256((uint64_t)0), FPP256((uint64_t)1), FPP256(-1)});

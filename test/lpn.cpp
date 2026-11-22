@@ -171,6 +171,7 @@ int main() {
   ThreadPool pool(4);
   check_sets();
   check_matrix<FP61>(&pool, "FP61 (unit entries)");
+  check_matrix<FP128>(&pool, "FP128 (unit entries, lazy accumulator)");
   check_matrix<FP192>(&pool, "FP192 (unit entries, lazy accumulator)");
   check_matrix<FP25519>(&pool, "FP25519 (unit entries, lazy accumulator)");
   check_matrix<FPP256>(&pool, "FPP256 (unit entries, lazy accumulator)");

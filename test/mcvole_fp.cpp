@@ -5,6 +5,7 @@
 #include "vole/fields/fp61x2.h"
 #include "vole/fields/fp107.h"
 #include "vole/fields/fp107x2.h"
+#include "vole/fields/fp128x2.h"
 #include "vole/fields/fp192.h"
 #include "vole/fields/fp192x2.h"
 #include "vole/fields/fp25519x2.h"
@@ -43,8 +44,8 @@ int main(int argc, char **argv) {
   // usage: test_mcvole_fp <party> <port> [field]   party in 0..n_party (king=n_party)
   parse_party_and_port(argv, &party, &port);
   std::string field = (argc > 3) ? std::string(argv[3]) : "fp61";
-  if (field != "fp61" && field != "fp107" && field != "p192" && field != "p25519" && field != "p256" && field != "f2k" && field != "z2k")
-    error("unknown field: use fp61 | fp107 | p192 | p25519 | p256 | f2k | z2k");
+  if (field != "fp61" && field != "fp107" && field != "p128" && field != "p192" && field != "p25519" && field != "p256" && field != "f2k" && field != "z2k")
+    error("unknown field: use fp61 | fp107 | p128 | p192 | p25519 | p256 | f2k | z2k");
 
   const int P = n_party + 1;
   std::size_t num_io = (threads == 1) ? 2 : threads;
@@ -75,6 +76,8 @@ int main(int argc, char **argv) {
     test_mcvole<FP61, FP61, FP61x2>(ios, party, "fp61");
   else if (field == "fp107")
     test_mcvole<FP107, FP107, FP107x2>(ios, party, "fp107");
+  else if (field == "p128")
+    test_mcvole<FP128, FP128, FP128x2>(ios, party, "p128");
   else if (field == "p192")
     test_mcvole<FP192, FP192, FP192x2>(ios, party, "p192");
   else if (field == "p25519")

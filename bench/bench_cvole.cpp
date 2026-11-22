@@ -10,7 +10,7 @@
 // is NOT part of extend, so it is not measured here.)
 //
 // usage: bench_cvole <party> <port> [field] [threads] [log2_target]
-//        field   in {fp61, fp107, p192, p25519, p256, f2k, z2k}   (default fp61)
+//        field   in {fp61, fp107, p128, p192, p25519, p256, f2k, z2k}   (default fp61)
 //        threads                               (default 1)
 //        log2_target = log2(#correlations)     (default 20)
 #include "emp-tool/emp-tool.h"
@@ -77,8 +77,8 @@ int main(int argc, char **argv) {
   std::size_t threads = (argc > 4) ? std::strtoull(argv[4], nullptr, 0) : 1;
   std::size_t log2_target = (argc > 5) ? std::strtoull(argv[5], nullptr, 0) : 20;
   std::size_t target = 1ull << log2_target;
-  if (field != "fp61" && field != "fp107" && field != "p192" && field != "p25519" && field != "p256" && field != "f2k" && field != "z2k")
-    error("unknown field: use fp61 | fp107 | p192 | p25519 | p256 | f2k | z2k");
+  if (field != "fp61" && field != "fp107" && field != "p128" && field != "p192" && field != "p25519" && field != "p256" && field != "f2k" && field != "z2k")
+    error("unknown field: use fp61 | fp107 | p128 | p192 | p25519 | p256 | f2k | z2k");
   if (threads < 1) threads = 1;
 
   NetIO **ios = new NetIO *[threads];
@@ -89,6 +89,8 @@ int main(int argc, char **argv) {
     bench_cvole<FP61, FP61, FP61x2>(ios, threads, target, "fp61");
   else if (field == "fp107")
     bench_cvole<FP107, FP107, FP107x2>(ios, threads, target, "fp107");
+  else if (field == "p128")
+    bench_cvole<FP128, FP128, FP128x2>(ios, threads, target, "p128");
   else if (field == "p192")
     bench_cvole<FP192, FP192, FP192x2>(ios, threads, target, "p192");
   else if (field == "p25519")

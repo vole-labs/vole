@@ -28,6 +28,7 @@ The tests select the field at run time:
 |---|---|---|
 | `fp61`  | F_p, p = 2⁶¹−1 (Mersenne) | `FP61, FP61, FP61x2` |
 | `fp107` | F_p, p = 2¹⁰⁷−1 (Mersenne) | `FP107, FP107, FP107x2` |
+| `p128`  | F_p, p = 2¹²⁸−159 | `FP128, FP128, FP128x2` |
 | `p192`  | F_p, p = 2¹⁹²−2⁶⁴−1 (NIST P-192) | `FP192, FP192, FP192x2` |
 | `p25519` | F_p, p = 2²⁵⁵−19 | `FP25519, FP25519, FP25519x2` |
 | `p256`  | F_p, NIST P-256 base field | `FPP256, FPP256, FPP256x2` |
@@ -98,7 +99,7 @@ vendored in `vole/twokeyprp.h` and `vole/preot.h`.
 ## Running the tests
 
 Each test is a networked program; pick the field with the optional last
-argument (`fp61` | `fp107` | `p192` | `p25519` | `p256` | `f2k` | `z2k`; defaults to `fp61`; `z2k` is
+argument (`fp61` | `fp107` | `p128` | `p192` | `p25519` | `p256` | `f2k` | `z2k`; defaults to `fp61`; `z2k` is
 available for the committed-VOLE tests). Parties connect over localhost.
 
 **Two-party (plain VOLE, committed VOLE):**

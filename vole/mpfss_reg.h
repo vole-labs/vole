@@ -383,8 +383,12 @@ public:
     FP x_star = beta_mul_chialpha.negate();
     x_star = z.getHigh() + x_star;
     if (test_cheat == kCheatXStar) x_star = x_star + FP((uint64_t)1);  // test hook
-    if constexpr (std::is_integral_v<decltype(x_star.val)>)               // test hook
-      if (test_cheat == kCheatNonCanonical) x_star.val += (decltype(x_star.val))FP::PR;
+    if (test_cheat == kCheatNonCanonical) {                                // test hook
+      if constexpr (std::is_integral_v<decltype(x_star.val)>)
+        x_star.val += (decltype(x_star.val))FP::PR;
+      else  // limb storage: all-ones is >= p for every limb field
+        std::memset(&x_star.val, 0xff, sizeof(x_star.val));
+    }
     netio->send_data(&x_star, sizeof(FP));
     netio->flush();
 
@@ -418,7 +422,7 @@ public:
   // Test hooks (test/mpfss_check.cpp); 0 = honest.
   int test_cheat = 0;
   static constexpr int kCheatXStar = 1;         // receiver: x* + 1
-  static constexpr int kCheatNonCanonical = 2;  // receiver: x* + p (integer-stored fields)
+  static constexpr int kCheatNonCanonical = 2;  // receiver: x* + p (integer storage), all-ones (limbs)
   static constexpr int kCheatVa = 3;            // receiver: va + 1
   static constexpr int kCheatBadOpening = 4;    // sender: opens with another salt
 

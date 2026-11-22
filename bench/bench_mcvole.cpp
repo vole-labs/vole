@@ -12,6 +12,7 @@
 #include "vole/fields/fp61x2.h"
 #include "vole/fields/fp107.h"
 #include "vole/fields/fp107x2.h"
+#include "vole/fields/fp128x2.h"
 #include "vole/fields/fp192.h"
 #include "vole/fields/fp192x2.h"
 #include "vole/fields/fp25519x2.h"
@@ -65,8 +66,8 @@ int main(int argc, char **argv) {
   std::size_t threads = (argc > 4) ? (std::size_t)atoi(argv[4]) : 1;
   int n_party = (argc > 5) ? atoi(argv[5]) : 3;
   int log2_target = (argc > 6) ? atoi(argv[6]) : 20;
-  if (field != "fp61" && field != "fp107" && field != "p192" && field != "p25519" && field != "p256" && field != "f2k" && field != "z2k")
-    error("unknown field: use fp61 | fp107 | p192 | p25519 | p256 | f2k | z2k");
+  if (field != "fp61" && field != "fp107" && field != "p128" && field != "p192" && field != "p25519" && field != "p256" && field != "f2k" && field != "z2k")
+    error("unknown field: use fp61 | fp107 | p128 | p192 | p25519 | p256 | f2k | z2k");
   std::size_t target = 1ull << log2_target;
 
   const int P = n_party + 1;
@@ -85,6 +86,7 @@ int main(int argc, char **argv) {
 
   if (field == "fp61")       bench<FP61, FP61x2>(ios, party, n_party, threads, target, "fp61");
   else if (field == "fp107") bench<FP107, FP107x2>(ios, party, n_party, threads, target, "fp107");
+  else if (field == "p128") bench<FP128, FP128x2>(ios, party, n_party, threads, target, "p128");
   else if (field == "p192") bench<FP192, FP192x2>(ios, party, n_party, threads, target, "p192");
   else if (field == "p25519") bench<FP25519, FP25519x2>(ios, party, n_party, threads, target, "p25519");
   else if (field == "p256") bench<FPP256, FPP256x2>(ios, party, n_party, threads, target, "p256");

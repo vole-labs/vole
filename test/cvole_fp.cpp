@@ -5,6 +5,7 @@
 #include "vole/fields/fp61x2.h"
 #include "vole/fields/fp107.h"
 #include "vole/fields/fp107x2.h"
+#include "vole/fields/fp128x2.h"
 #include "vole/fields/fp192.h"
 #include "vole/fields/fp192x2.h"
 #include "vole/fields/fp25519x2.h"
@@ -108,11 +109,11 @@ void test_cvole(NetIO *ios[threads], int party, const char *tag) {
 }
 
 int main(int argc, char **argv) {
-  // usage: test_cvole_fp <party> <port> [field]   field in {fp61, fp107, p192, p25519, p256, f2k}
+  // usage: test_cvole_fp <party> <port> [field]   field in {fp61, fp107, p128, p192, p25519, p256, f2k}
   parse_party_and_port(argv, &party, &port);
   std::string field = (argc > 3) ? std::string(argv[3]) : "fp61";
-  if (field != "fp61" && field != "fp107" && field != "p192" && field != "p25519" && field != "p256" && field != "f2k" && field != "z2k")
-    error("unknown field: use fp61 | fp107 | p192 | p25519 | p256 | f2k | z2k");
+  if (field != "fp61" && field != "fp107" && field != "p128" && field != "p192" && field != "p25519" && field != "p256" && field != "f2k" && field != "z2k")
+    error("unknown field: use fp61 | fp107 | p128 | p192 | p25519 | p256 | f2k | z2k");
 
   NetIO *ios[threads];
   for (std::size_t i = 0; i < threads; ++i)
@@ -127,6 +128,8 @@ int main(int argc, char **argv) {
     test_cvole<FP61, FP61, FP61x2>(ios, party, "fp61");
   else if (field == "fp107")
     test_cvole<FP107, FP107, FP107x2>(ios, party, "fp107");
+  else if (field == "p128")
+    test_cvole<FP128, FP128, FP128x2>(ios, party, "p128");
   else if (field == "p192")
     test_cvole<FP192, FP192, FP192x2>(ios, party, "p192");
   else if (field == "p25519")

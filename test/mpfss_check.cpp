@@ -13,7 +13,7 @@
 // The expected party and message are checked by the CMake test (grep on its
 // output); the extend round prints "round passed" only on success.
 //
-// usage: test_mpfss_check <party> <port> <mode> [field]   field in {fp61, p192, p256}
+// usage: test_mpfss_check <party> <port> <mode> [field]   field in {fp61, p128, p192, p256}
 #include "emp-tool/emp-tool.h"
 #include "vole/vole-fp.h"
 #include "vole/fields/field_config.h"
@@ -69,9 +69,10 @@ int main(int argc, char **argv) {
     error("unknown mode: honest | xstar | noncanon | va | badopen");
   NetIO *ios[1] = {new NetIO(party == ALICE ? nullptr : "127.0.0.1", port, true)};
   if (field == "fp61") run<FP61, FP61x2>(ios, mode, "fp61");
+  else if (field == "p128") run<FP128, FP128x2>(ios, mode, "p128");
   else if (field == "p192") run<FP192, FP192x2>(ios, mode, "p192");
   else if (field == "p256") run<FPP256, FPP256x2>(ios, mode, "p256");
-  else error("unknown field: fp61 | p192 | p256");
+  else error("unknown field: fp61 | p128 | p192 | p256");
   delete ios[0];
   return 0;
 }

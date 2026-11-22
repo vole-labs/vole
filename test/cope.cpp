@@ -64,10 +64,11 @@ int main(int argc, char **argv) {
   NetIO *io = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port);
   int r;
   if (field == "fp107") r = run<FP107>(io, party, "fp107");
+  else if (field == "p128") r = run<FP128>(io, party, "p128");
   else if (field == "p192") r = run<FP192>(io, party, "p192");
   else if (field == "p25519") r = run<FP25519>(io, party, "p25519");
   else if (field == "p256") r = run<FPP256>(io, party, "p256");
-  else error("unknown field: use fp107 | p192 | p25519 | p256");
+  else error("unknown field: use fp107 | p128 | p192 | p25519 | p256");
   delete io;
   return r;
 }

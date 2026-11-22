@@ -2,7 +2,7 @@
 #define VOLE_FIELDS_FIELD_PAIR_H__
 
 // FieldPair<F>: SPDZ (value, MAC) pair of two F slots for the limb-storage
-// fields (FP25519, FPP256), the same layout and operations as FP192x2:
+// fields (FP128, FP25519, FPP256), the same layout and operations as FP192x2:
 // val[0] is the low slot (the MAC in a VOLE bundle), val[1] the high slot
 // (the value); all operations are lane-wise.
 

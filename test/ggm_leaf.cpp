@@ -81,6 +81,7 @@ void run(const char *tag) {
 int main() {
   run<FP61, FP61x2>("fp61");
   run<FP107, FP107x2>("fp107");
+  run<FP128, FP128x2>("p128");
   run<FP192, FP192x2>("p192");
   run<FP25519, FP25519x2>("p25519");
   run<FPP256, FPP256x2>("p256");

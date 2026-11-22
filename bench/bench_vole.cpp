@@ -4,7 +4,7 @@
 // (Primal VOLE has a single expansion pipeline, so there is no A/B split.)
 //
 // usage: bench_vole <party> <port> [field] [threads] [batches] [params]
-//        field   in {fp61, fp107, p192, p25519, p256, f2k, z2k, f2}  (default fp61; f2 = Ferret COT,
+//        field   in {fp61, fp107, p128, p192, p25519, p256, f2k, z2k, f2}  (default fp61; f2 = Ferret COT,
 //                  values in F_2)
 //        threads                               (default 1)
 //        batches = #(ot_limit-sized) extends   (default 5)
@@ -76,8 +76,8 @@ int main(int argc, char **argv) {
   else if (pname == "b12") param = ferret_b12;
   else if (pname == "b13") param = ferret_b13;
   else error("unknown params: use b9 | b10 | b11 | b12 | b13");
-  if (field != "fp61" && field != "fp107" && field != "p192" && field != "p25519" && field != "p256" && field != "f2k" && field != "z2k" && field != "f2")
-    error("unknown field: use fp61 | fp107 | p192 | p25519 | p256 | f2k | z2k | f2");
+  if (field != "fp61" && field != "fp107" && field != "p128" && field != "p192" && field != "p25519" && field != "p256" && field != "f2k" && field != "z2k" && field != "f2")
+    error("unknown field: use fp61 | fp107 | p128 | p192 | p25519 | p256 | f2k | z2k | f2");
   if (threads < 1) threads = 1;
 
   NetIO **ios = new NetIO *[threads];
@@ -88,6 +88,8 @@ int main(int argc, char **argv) {
     bench_vole<FP61, FP61, FP61x2>(ios, threads, batches, "fp61", param);
   else if (field == "fp107")
     bench_vole<FP107, FP107, FP107x2>(ios, threads, batches, "fp107", param);
+  else if (field == "p128")
+    bench_vole<FP128, FP128, FP128x2>(ios, threads, batches, "p128", param);
   else if (field == "p192")
     bench_vole<FP192, FP192, FP192x2>(ios, threads, batches, "p192", param);
   else if (field == "p25519")
